@@ -999,12 +999,23 @@
         .emoji-btn {
             border: 1px dashed #ded4ff;
             background: #fff;
+            color: #222;
+            -webkit-text-fill-color: #222;
             border-radius: 999px;
             padding: 6px 10px;
-            font-size: 16px;
+            min-width: 34px;
+            min-height: 30px;
+            font-size: 18px;
+            line-height: 1;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
             cursor: pointer;
             transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease;
-            line-height: 1;
+            font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", -apple-system, BlinkMacSystemFont, sans-serif;
+            text-indent: 0;
+            text-shadow: none;
+            box-sizing: border-box;
         }
 
         .emoji-btn:hover {
