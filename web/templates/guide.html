@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>使用手册 - 羽毛球视频处理</title>
+    <style>
+        :root {
+            color: #1f2937;
+            background: #f5f7ff;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .page {
+            max-width: 820px;
+            margin: 0 auto;
+            padding: calc(env(safe-area-inset-top) + 24px) 18px calc(env(safe-area-inset-bottom) + 32px);
+        }
+
+        .hero {
+            color: white;
+            margin: 0 4px 22px;
+        }
+
+        .back-link {
+            display: inline-block;
+            margin-bottom: 18px;
+            color: white;
+            font-size: 14px;
+            text-decoration: none;
+        }
+
+        .back-link:hover {
+            text-decoration: underline;
+        }
+
+        h1 {
+            margin: 0 0 8px;
+            font-size: clamp(26px, 7vw, 38px);
+        }
+
+        .hero p {
+            margin: 0;
+            font-size: 15px;
+            opacity: 0.9;
+        }
+
+        .content {
+            padding: 28px;
+            border-radius: 20px;
+            background: white;
+            box-shadow: 0 12px 42px rgba(28, 29, 71, 0.22);
+        }
+
+        h2 {
+            margin: 32px 0 14px;
+            padding-left: 12px;
+            border-left: 4px solid #667eea;
+            font-size: 20px;
+        }
+
+        h2:first-child {
+            margin-top: 0;
+        }
+
+        h3 {
+            margin: 22px 0 10px;
+            font-size: 16px;
+        }
+
+        p, li {
+            font-size: 15px;
+            line-height: 1.75;
+        }
+
+        ul, ol {
+            margin: 10px 0;
+            padding-left: 24px;
+        }
+
+        code {
+            padding: 2px 6px;
+            border-radius: 5px;
+            color: #4c51bf;
+            background: #eef0ff;
+            font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+            word-break: break-all;
+        }
+
+        .notice {
+            padding: 14px 16px;
+            border-radius: 12px;
+            color: #4b5563;
+            background: #f0f4ff;
+        }
+
+        .footer-link {
+            display: inline-block;
+            margin-top: 20px;
+            padding: 11px 16px;
+            border-radius: 10px;
+            color: white;
+            background: #667eea;
+            font-size: 14px;
+            font-weight: 600;
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+    <main class="page">
+        <header class="hero">
+            <a class="back-link" href="/">← 返回视频处理首页</a>
+            <h1>羽毛球视频处理使用手册</h1>
+            <p>上传视频、自动识别切割、筛选并下载精彩片段。</p>
+        </header>
+
+        <article class="content">
+            <h2>1. 功能概览</h2>
+            <p>本服务用于上传羽毛球视频，自动识别视频中的有效片段并切割为多个 MP4 文件。处理完成后，可预览原视频、筛选切割结果、单独或批量下载片段，并重新查看历史任务。</p>
+            <ul>
+                <li>上传常见视频格式的羽毛球视频</li>
+                <li>设置需要保留的最短片段时长</li>
+                <li>自动识别并切割有效片段</li>
+                <li>查看片段数量、总大小和平均时长</li>
+                <li>按片段时长筛选、下载和重新查看历史任务</li>
+            </ul>
+
+            <h2>2. 访问服务</h2>
+            <p>使用手机或电脑浏览器访问：</p>
+            <p><code>{{ site_url }}/</code></p>
+            <p class="notice">建议连接稳定的 Wi-Fi 后上传大文件。公网访问会受网络带宽影响，上传时间可能较长。</p>
+
+            <h2>3. 上传视频</h2>
+            <ol>
+                <li>在首页点击“点击或拖拽上传视频”。</li>
+                <li>在手机相册或文件管理器中选择视频。</li>
+                <li>等待上传进度条完成。</li>
+                <li>上传成功后，查看原视频预览、文件名和文件大小。</li>
+            </ol>
+            <p>支持 MP4、MOV、QT、M4V、3GP、AVI、MKV、FLV 和 WMV 格式；单个视频最大 500 MB。特别兼容 iPhone 相册裁剪后导出的 QuickTime（.qt / .mov / .m4v）视频。</p>
+
+            <h2>4. 设置处理参数</h2>
+            <p>上传完成后，可设置“多少秒以上的片段才保留”。默认值为 <code>5</code> 秒。</p>
+            <ul>
+                <li>设置为 <code>0</code>：保留系统识别出的所有片段。</li>
+                <li>建议设置为 <code>5～10</code> 秒：通常可过滤较短或不完整的片段。</li>
+            </ul>
+
+            <h2>5. 开始处理视频</h2>
+            <ol>
+                <li>确认参数后，点击“开始处理”。</li>
+                <li>页面显示“处理中，请耐心等待”后，请保持页面打开。</li>
+                <li>处理完成后，结果将显示在“处理结果”区域。</li>
+            </ol>
+            <p>视频越长、分辨率越高，处理所需时间越长。需要调整最短片段时长时，可修改参数后点击“重新处理”。</p>
+
+            <h2>6. 查看和筛选结果</h2>
+            <p>处理结果会显示片段数、总大小和平均时长。每个片段包含文件名、视频时长、文件大小、选择框和单独下载按钮。</p>
+            <p>如需只查看较长片段，在“只显示多少秒以上”中输入时长，点击“应用筛选”。此操作仅改变当前显示内容，不会删除已生成的视频文件。</p>
+
+            <h2>7. 下载并保存视频</h2>
+            <h3>下载单个片段</h3>
+            <p>点击片段右侧的下载按钮即可下载。</p>
+            <h3>批量下载片段</h3>
+            <ol>
+                <li>勾选需要的视频片段，或使用“全选”。</li>
+                <li>点击“下载勾选”。</li>
+                <li>浏览器会依次下载所选文件。</li>
+            </ol>
+            <p>手机浏览器不能直接自动写入相册：</p>
+            <ul>
+                <li>iPhone：在 Safari 或“文件”中打开下载的视频，点击“分享”，选择“存储视频”。</li>
+                <li>Android：从通知栏或“下载”目录打开文件，并按手机系统提示保存或移动到相册。</li>
+            </ul>
+
+            <h2>8. 查看历史任务</h2>
+            <p>页面底部的“历史任务”展示仍保存有处理结果的任务。点击任务右侧的文件夹按钮，可重新载入该任务的结果，继续筛选、勾选和下载。</p>
+
+            <h2>9. 常见问题</h2>
+            <h3>上传后提示“文件类型不允许”</h3>
+            <p>请确认文件后缀为 MP4、MOV、QT、M4V、3GP、AVI、MKV、FLV 或 WMV，且文件确实是视频。若文件来自 iPhone 相册或剪辑工具，可放心使用 .qt、.mov、.m4v 格式。</p>
+            <h3>没有生成片段</h3>
+            <p>可能未识别到有效羽毛球活动，或最短片段时长设置过高。可将参数调低到 <code>0</code> 或 <code>3</code> 秒后重新处理。</p>
+            <h3>下载后找不到视频</h3>
+            <p>请在浏览器下载记录或手机文件管理器的“下载”目录中查找。iPhone 通常需要从“文件”中打开后再手动存储到相册。</p>
+
+            <a class="footer-link" href="/">开始处理视频</a>
+        </article>
+    </main>
+</body>
+</html>

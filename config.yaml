@@ -1,0 +1,28 @@
+video:
+  frame_sample_rate: 1
+  min_segment_duration: 3.0
+  max_segment_duration: 60.0
+  padding_before: 0.5
+  padding_after: 0.5
+
+court:
+  width: 5.18
+  height: 13.40
+  hough_threshold: 100
+  hough_min_line_length: 100
+  hough_max_line_gap: 20
+
+shuttlecock:
+  confidence_threshold: 0.5
+  speed_threshold: 0.5
+  drop_speed_threshold: 0.1
+
+pose:
+  model_complexity: 1
+  min_detection_confidence: 0.5
+  min_tracking_confidence: 0.5
+
+output:
+  format: mp4
+  codec: libx264
+  quality: 23

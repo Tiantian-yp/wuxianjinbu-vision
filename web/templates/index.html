@@ -1,0 +1,2798 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>🏸 无限进步球场 · 快乐切片工作站</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding-bottom: env(safe-area-inset-bottom);
+        }
+
+        .container {
+            max-width: 560px;
+            margin: 0 auto;
+            padding: 20px;
+            padding-top: calc(env(safe-area-inset-top) + 20px);
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        .brand {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            margin: 18px auto 12px;
+        }
+
+        .brand-inner {
+            display: inline-flex;
+            align-items: center;
+            gap: 9px;
+        }
+
+        .brand-mark {
+            display: block;
+            width: 54px;
+            height: auto;
+            filter: drop-shadow(0 3px 6px rgba(13, 54, 105, 0.25));
+        }
+
+        .brand-copy {
+            text-align: center;
+        }
+
+        .brand-name {
+            display: block;
+            margin-top: 5px;
+            font-size: 11px;
+            font-weight: 500;
+            letter-spacing: 1px;
+            opacity: 0.7;
+        }
+
+        .brand-slogan {
+            display: block;
+            font-size: 24px;
+            font-weight: 800;
+            letter-spacing: 0.5px;
+            line-height: 1.2;
+            text-shadow: 0 2px 6px rgba(0, 0, 0, 0.18);
+        }
+
+        .header h1 {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .header p {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .guide-link {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin-top: 12px;
+            padding: 8px 14px;
+            border: 1px solid rgba(255, 255, 255, 0.6);
+            border-radius: 999px;
+            color: white;
+            font-size: 13px;
+            font-weight: 600;
+            text-decoration: none;
+            transition: background 0.2s ease;
+        }
+
+        .guide-link:hover {
+            background: rgba(255, 255, 255, 0.16);
+        }
+
+        .card {
+            background: white;
+            border-radius: 20px;
+            padding: 24px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+        }
+
+        .upload-area {
+            border: 3px dashed #ddd;
+            border-radius: 16px;
+            padding: 40px 20px;
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            background: #fafafa;
+        }
+
+        .upload-area:hover {
+            border-color: #667eea;
+            background: #f0f4ff;
+        }
+
+        .upload-area.dragover {
+            border-color: #667eea;
+            background: #f0f4ff;
+            transform: scale(1.02);
+        }
+
+        .upload-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+            color: #667eea;
+        }
+
+        .upload-text {
+            font-size: 16px;
+            color: #333;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+
+        .upload-hint {
+            font-size: 13px;
+            color: #999;
+        }
+
+        #fileInput {
+            display: none;
+        }
+
+        .btn {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 12px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-secondary {
+            background: #f0f0f0;
+            color: #555;
+        }
+
+        .btn-secondary:hover {
+            background: #e0e0e0;
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(17, 153, 142, 0.4);
+        }
+
+        .btn-success:hover {
+            transform: translateY(-2px);
+        }
+
+        .btn-success:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-small {
+            padding: 8px 14px;
+            font-size: 13px;
+            border-radius: 10px;
+        }
+
+        .btn-full {
+            width: 100%;
+        }
+
+        .progress-container {
+            margin-top: 20px;
+            display: none;
+        }
+
+        .progress-bar {
+            height: 8px;
+            background: #eee;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            border-radius: 4px;
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .progress-text {
+            font-size: 13px;
+            color: #666;
+            margin-top: 8px;
+            text-align: center;
+        }
+
+        .video-preview {
+            margin-top: 20px;
+            display: none;
+        }
+
+        .video-preview h3 {
+            font-size: 14px;
+            color: #333;
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+
+        .video-container {
+            width: 100%;
+            aspect-ratio: 16/9;
+            background: #000;
+            border-radius: 12px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .video-container video {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .file-info {
+            margin-top: 10px;
+            font-size: 13px;
+            color: #666;
+            line-height: 1.6;
+        }
+
+        .form-group {
+            margin-top: 16px;
+        }
+
+        .form-label {
+            font-size: 13px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 8px;
+            display: block;
+        }
+
+        .form-label-hint {
+            font-size: 12px;
+            color: #999;
+            font-weight: normal;
+            margin-left: 6px;
+        }
+
+        .input-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .input-row input[type="number"] {
+            flex: 1;
+            padding: 10px 14px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 15px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .input-row input[type="number"]:focus {
+            border-color: #667eea;
+        }
+
+        .input-row .unit {
+            font-size: 14px;
+            color: #666;
+            white-space: nowrap;
+        }
+
+        .btn-row {
+            display: flex;
+            gap: 10px;
+            margin-top: 14px;
+        }
+
+        .btn-row .btn {
+            flex: 1;
+        }
+
+        .section-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .section-title::before {
+            content: '';
+            width: 4px;
+            height: 16px;
+            background: #667eea;
+            border-radius: 2px;
+        }
+
+        .filter-bar {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 14px;
+            margin-bottom: 16px;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .filter-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            color: #555;
+        }
+
+        .filter-item input[type="number"] {
+            width: 80px;
+            padding: 6px 10px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 13px;
+            outline: none;
+        }
+
+        .filter-item input[type="number"]:focus {
+            border-color: #667eea;
+        }
+
+        .action-bar {
+            background: #f0f4ff;
+            border-radius: 12px;
+            padding: 14px;
+            margin-bottom: 16px;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .action-bar-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .action-bar-right {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .checkbox-wrap {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .checkbox-wrap input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+            accent-color: #667eea;
+        }
+
+        .checkbox-wrap label {
+            font-size: 13px;
+            color: #555;
+            cursor: pointer;
+        }
+
+        .selected-count {
+            font-size: 13px;
+            color: #667eea;
+            font-weight: 600;
+            padding: 4px 10px;
+            background: white;
+            border-radius: 8px;
+        }
+
+        .output-list {
+            max-height: 500px;
+            overflow-y: auto;
+        }
+
+        .output-item {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 14px;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            transition: all 0.2s ease;
+        }
+
+        .output-item:hover {
+            background: #f0f4ff;
+        }
+
+        .output-item input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+            accent-color: #667eea;
+            flex-shrink: 0;
+        }
+
+        .output-icon {
+            width: 44px;
+            height: 44px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 20px;
+            flex-shrink: 0;
+        }
+
+        .output-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .output-name {
+            font-size: 14px;
+            font-weight: 500;
+            color: #333;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            margin-bottom: 4px;
+        }
+
+        .output-meta {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .output-meta-item {
+            font-size: 12px;
+            color: #999;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .output-meta-item.duration {
+            color: #11998e;
+            font-weight: 600;
+        }
+
+        .download-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            background: #667eea;
+            border: none;
+            color: white;
+            font-size: 18px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            transition: all 0.2s ease;
+            text-decoration: none;
+        }
+
+        .download-btn:hover {
+            background: #5a6fd6;
+            transform: scale(1.05);
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: #999;
+        }
+
+        .empty-state-icon {
+            font-size: 48px;
+            margin-bottom: 12px;
+            opacity: 0.5;
+        }
+
+        .empty-state p {
+            font-size: 14px;
+            margin-bottom: 4px;
+        }
+
+        .empty-state-hint {
+            font-size: 12px;
+            opacity: 0.8;
+        }
+
+        .toast {
+            position: fixed;
+            bottom: calc(env(safe-area-inset-bottom) + 20px);
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 20px;
+            font-size: 14px;
+            z-index: 1000;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            max-width: 90%;
+            text-align: center;
+        }
+
+        .toast.show {
+            opacity: 1;
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 18px;
+            height: 18px;
+            border: 2px solid #fff;
+            border-radius: 50%;
+            border-top-color: transparent;
+            animation: spin 0.8s linear infinite;
+            margin-right: 6px;
+            vertical-align: middle;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-top: 16px;
+        }
+
+        .stat-item {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 12px 8px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 18px;
+            font-weight: 700;
+            color: #667eea;
+        }
+
+        .stat-label {
+            font-size: 11px;
+            color: #999;
+            margin-top: 4px;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .modal-mask {
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.55);
+            z-index: 900;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .modal-mask.show {
+            display: flex;
+        }
+
+        .modal-dialog {
+            width: 100%;
+            max-width: 420px;
+            background: #fff;
+            border-radius: 18px;
+            padding: 22px 22px 18px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+        }
+
+        .modal-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: #222;
+            margin-bottom: 6px;
+        }
+
+        .modal-desc {
+            font-size: 12.5px;
+            color: #777;
+            line-height: 1.6;
+            margin-bottom: 16px;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 16px;
+        }
+
+        .modal-actions .btn {
+            flex: 1;
+            padding: 11px 14px;
+        }
+
+        .input-row input[type="text"] {
+            flex: 1;
+            padding: 11px 14px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 15px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .input-row input[type="text"]:focus {
+            border-color: #667eea;
+        }
+
+        .history-header {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 14px;
+        }
+
+        .history-filter {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .history-filter select {
+            min-width: 160px;
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            font-size: 13px;
+            outline: none;
+            background: #fff;
+        }
+
+        .history-filter select:focus {
+            border-color: #667eea;
+        }
+
+        .table-wrap {
+            overflow-x: auto;
+            border: 1px solid #eef0f4;
+            border-radius: 14px;
+            background: #fafbfd;
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: #fff;
+            min-width: 720px;
+        }
+
+        .data-table thead th {
+            background: #f0f4ff;
+            color: #3f4a6b;
+            font-size: 12.5px;
+            font-weight: 600;
+            padding: 12px 14px;
+            text-align: left;
+            border-bottom: 1px solid #e6ebf5;
+            white-space: nowrap;
+        }
+
+        .data-table tbody td {
+            padding: 12px 14px;
+            border-bottom: 1px solid #eef1f7;
+            font-size: 13px;
+            color: #333;
+            vertical-align: middle;
+        }
+
+        .data-table tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        .data-table tbody tr:hover td {
+            background: #f8faff;
+        }
+
+        .task-cell-primary {
+            font-weight: 600;
+            color: #222;
+            display: block;
+            line-height: 1.4;
+        }
+
+        .task-cell-secondary {
+            font-size: 12px;
+            color: #888;
+            line-height: 1.4;
+            margin-top: 2px;
+            display: block;
+        }
+
+        .link-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 6px 10px;
+            border-radius: 8px;
+            font-size: 12.5px;
+            color: #fff;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.2s ease;
+        }
+
+        .link-btn:hover {
+            transform: translateY(-1px);
+            filter: brightness(1.03);
+        }
+
+        .link-btn.secondary {
+            background: #eef1f9;
+            color: #4f5cff;
+        }
+
+        .chip {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 999px;
+            font-size: 11.5px;
+            font-weight: 600;
+            line-height: 1.4;
+        }
+
+        .chip.completed { background: #e7f8f1; color: #11998e; }
+        .chip.processing { background: #eef4ff; color: #3a5fff; }
+        .chip.failed { background: #fdecee; color: #cf1d2f; }
+        .chip.expired { background: #f4f5f7; color: #777; }
+
+        .identity-bar {
+            background: linear-gradient(135deg, #fff 0%, #fef6ff 100%);
+            border: 1px solid #f1e7ff;
+            border-radius: 16px;
+            padding: 12px 14px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 16px rgba(118, 75, 162, 0.12);
+        }
+
+        .identity-avatar {
+            width: 42px;
+            height: 42px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            font-size: 17px;
+            flex-shrink: 0;
+            box-shadow: 0 4px 10px rgba(118, 75, 162, 0.35);
+        }
+
+        .identity-text {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .identity-label {
+            font-size: 11.5px;
+            color: #8f7cb7;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+
+        .identity-name {
+            font-size: 14.5px;
+            color: #333;
+            font-weight: 700;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .identity-edit-btn {
+            background: #fff;
+            border: 1px solid #e5d9fb;
+            color: #6c5ce7;
+            padding: 6px 10px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            flex-shrink: 0;
+            transition: all 0.2s ease;
+        }
+
+        .identity-edit-btn:hover {
+            background: #f4efff;
+            transform: translateY(-1px);
+        }
+
+        .identity-modal-emoji {
+            text-align: center;
+            font-size: 46px;
+            line-height: 1.1;
+            margin: 4px 0 10px;
+        }
+
+        .identity-modal-tips {
+            font-size: 12px;
+            color: #8e7cbb;
+            margin-top: 10px;
+            padding: 10px 12px;
+            background: #f5f1ff;
+            border-radius: 12px;
+            line-height: 1.6;
+        }
+
+        .comments-card {
+            background: #ffffff;
+            border-radius: 20px;
+            padding: 22px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.12);
+        }
+
+        .comments-summary {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 14px;
+            align-items: center;
+        }
+
+        .summary-chip {
+            background: #f8f6ff;
+            border-radius: 999px;
+            padding: 6px 12px;
+            font-size: 12.5px;
+            color: #5d4ba9;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .summary-chip strong {
+            color: #3f2e8a;
+            font-weight: 700;
+        }
+
+        .comment-form {
+            background: #faf8ff;
+            border: 1px solid #ece6ff;
+            border-radius: 16px;
+            padding: 14px;
+            margin-bottom: 22px;
+        }
+
+        .form-block {
+            margin-bottom: 12px;
+        }
+
+        .comment-rating {
+            display: inline-flex;
+            gap: 6px;
+            padding: 4px 0;
+            user-select: none;
+        }
+
+        .comment-rating .star {
+            font-size: 26px;
+            cursor: pointer;
+            color: #dcdce5;
+            transition: transform 0.15s ease, color 0.15s ease;
+            line-height: 1;
+        }
+
+        .comment-rating .star:hover {
+            transform: scale(1.12);
+        }
+
+        .comment-rating .star.active {
+            color: #ffb400;
+            text-shadow: 0 2px 6px rgba(255, 180, 0, 0.25);
+        }
+
+        .comment-textarea {
+            width: 100%;
+            resize: vertical;
+            min-height: 96px;
+            padding: 11px 12px;
+            border-radius: 12px;
+            border: 2px solid #e4defb;
+            font-size: 14px;
+            line-height: 1.6;
+            outline: none;
+            transition: border-color 0.2s ease;
+            font-family: inherit;
+            background: #fff;
+            color: #222;
+        }
+
+        .comment-textarea:focus {
+            border-color: #7a6cf4;
+        }
+
+        .comment-textarea::placeholder {
+            color: #b0a6d8;
+        }
+
+        .emoji-bar {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin: 10px 0 4px;
+        }
+
+        .emoji-btn {
+            border: 1px dashed #ded4ff;
+            background: #fff;
+            border-radius: 999px;
+            padding: 6px 10px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+            line-height: 1;
+        }
+
+        .emoji-btn:hover {
+            transform: translateY(-1px) scale(1.04);
+            background: #f6f0ff;
+            border-color: #c3b0ff;
+        }
+
+        .comment-submit-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 8px;
+        }
+
+        .comment-counter {
+            font-size: 12px;
+            color: #9e93c8;
+        }
+
+        .comments-table-wrap {
+            overflow-x: auto;
+            border-radius: 16px;
+            border: 1px solid #eef0f6;
+            background: #fbfaff;
+        }
+
+        .comments-table {
+            width: 100%;
+            min-width: 640px;
+            border-collapse: collapse;
+            background: #fff;
+        }
+
+        .comments-table thead th {
+            background: #f3efff;
+            color: #47398c;
+            font-size: 12.5px;
+            padding: 12px 14px;
+            text-align: left;
+            font-weight: 700;
+            border-bottom: 1px solid #e5dbff;
+            white-space: nowrap;
+        }
+
+        .comments-table tbody td {
+            padding: 12px 14px;
+            border-bottom: 1px solid #f1ecfb;
+            font-size: 13px;
+            color: #333;
+            vertical-align: top;
+        }
+
+        .comments-table tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        .comments-table tbody tr:hover td {
+            background: #faf7ff;
+        }
+
+        .comment-name-cell {
+            font-weight: 600;
+            color: #2a2154;
+            white-space: nowrap;
+        }
+
+        .comment-stars {
+            color: #ffb400;
+            font-size: 14px;
+            letter-spacing: 1px;
+            margin-right: 6px;
+        }
+
+        .comment-stars-empty {
+            color: #ddd7ec;
+        }
+
+        .comment-content-cell {
+            line-height: 1.65;
+            word-break: break-word;
+        }
+
+        .comment-empty {
+            text-align: center;
+            padding: 36px 20px;
+            color: #9e93c8;
+        }
+
+        .comment-empty-icon {
+            font-size: 40px;
+            margin-bottom: 8px;
+            opacity: 0.8;
+        }
+
+        @media (max-width: 380px) {
+            .container {
+                padding-left: 16px;
+                padding-right: 16px;
+            }
+
+            .brand {
+                gap: 9px;
+                margin-top: 15px;
+            }
+
+            .brand-mark {
+                width: 48px;
+            }
+
+            .brand-name {
+                font-size: 11px;
+            }
+
+            .brand-slogan {
+                font-size: 20px;
+            }
+        }
+
+        /* 抖音评论风历史任务卡片 */
+        .dy-comment-feed {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .dy-comment-item {
+            display: flex;
+            gap: 12px;
+            padding: 14px 14px 12px;
+            border-radius: 16px;
+            background: linear-gradient(145deg, #ffffff 0%, #faf7ff 100%);
+            border: 1px solid #f1ebff;
+            transition: transform 0.18s ease, box-shadow 0.18s ease;
+        }
+
+        .dy-comment-item:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 10px 26px rgba(80, 56, 160, 0.10);
+            border-color: #e1d4ff;
+        }
+
+        .dy-avatar {
+            width: 44px;
+            height: 44px;
+            flex-shrink: 0;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #fff;
+            font-weight: 800;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.32);
+            user-select: none;
+        }
+
+        .dy-body {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .dy-top-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 4px;
+            flex-wrap: wrap;
+        }
+
+        .dy-user-wrap {
+            display: inline-flex;
+            align-items: baseline;
+            gap: 8px;
+            flex-wrap: wrap;
+            min-width: 0;
+        }
+
+        .dy-user-name {
+            font-size: 14px;
+            font-weight: 700;
+            color: #2c215f;
+            line-height: 1.3;
+        }
+
+        .dy-user-title {
+            font-size: 11.5px;
+            color: #8e7cb9;
+            line-height: 1.4;
+        }
+
+        .dy-time {
+            font-size: 12px;
+            color: #a9a0cc;
+            white-space: nowrap;
+        }
+
+        .dy-content {
+            font-size: 13.5px;
+            line-height: 1.7;
+            color: #33295b;
+            margin: 6px 0 10px;
+            font-weight: 500;
+        }
+
+        .dy-quote-pill {
+            display: inline-block;
+            font-size: 11px;
+            padding: 2px 8px;
+            margin-right: 6px;
+            border-radius: 999px;
+            background: #fff7d8;
+            color: #7a5f0a;
+            font-weight: 700;
+        }
+
+        .dy-meta-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px 14px;
+            align-items: center;
+            font-size: 12px;
+            color: #6c5e9a;
+            margin-bottom: 10px;
+        }
+
+        .dy-meta-row .chip {
+            font-size: 11px;
+            padding: 2px 8px;
+        }
+
+        .dy-files-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin: 6px 0 10px;
+        }
+
+        .dy-actions-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+            margin-top: 4px;
+        }
+
+        .dy-actions-row .link-btn {
+            font-size: 12px;
+            padding: 5px 10px;
+            border-radius: 10px;
+        }
+
+        .dy-expand {
+            margin-top: 6px;
+        }
+
+        .dy-expand-btn {
+            font-size: 12px;
+            padding: 4px 10px;
+            background: #fff;
+            border: 1px dashed #d4c8ff;
+            border-radius: 999px;
+            color: #5e4fb3;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        .dy-expand-btn:hover {
+            background: #f1ebff;
+            border-color: #b6a5f6;
+        }
+
+        .dy-expand-content {
+            margin-top: 10px;
+            border-radius: 12px;
+            background: #faf8ff;
+            border: 1px solid #ece6ff;
+            padding: 10px;
+            display: none;
+        }
+
+        .dy-expand-content.show {
+            display: block;
+        }
+
+        .dy-empty {
+            padding: 34px 18px;
+            text-align: center;
+            border-radius: 16px;
+            background: linear-gradient(145deg, #fbfaff 0%, #f4efff 100%);
+            border: 1px dashed #e5dbff;
+        }
+
+        .dy-empty-icon {
+            font-size: 40px;
+            margin-bottom: 6px;
+        }
+
+        .dy-empty-title {
+            font-size: 15px;
+            font-weight: 700;
+            color: #423482;
+            margin-bottom: 4px;
+        }
+
+        .dy-empty-desc {
+            font-size: 12.5px;
+            line-height: 1.7;
+            color: #7a6db0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🏸 无限进步球场 · 快乐切片工作站</h1>
+            <p>上传就是热身，切割就是开席；每段快乐，都值得被单独保存。</p>
+            <a class="guide-link" href="/guide">📖 《如何优雅地打出一盘名场面》</a>
+        </div>
+
+        <div class="identity-bar" id="identityBar" style="display:none;">
+            <div class="identity-avatar" id="identityAvatar">🙋</div>
+            <div class="identity-text">
+                <div class="identity-label">我的球馆身份（用于档案室 / 留言墙隔离）</div>
+                <div class="identity-name" id="identityName">--</div>
+            </div>
+            <button type="button" class="identity-edit-btn" id="identityEditBtn">✏️ 换个球场昵称</button>
+        </div>
+
+        <div class="card">
+            <div class="upload-area" id="uploadArea">
+                <div class="upload-icon">🎯</div>
+                <div class="upload-text">把比赛录像甩这儿，球搭子帮你切名场面</div>
+                <div class="upload-hint">建议上传不超过 <strong id="recommendedMaxMinutes">8</strong> 分钟的视频，保证整体处理在 3 分钟内出结果 🏸</div>
+                <div class="upload-hint" style="margin-top:6px;color:#8f7cb7;">支持 MP4/MOV/QT/M4V/3GP/AVI/MKV…单条最大 500MB，手机 WiFi 上传更稳～</div>
+            </div>
+            <input type="file" id="fileInput" accept="video/*">
+            
+            <div class="progress-container" id="progressContainer">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+                <div class="progress-text" id="progressText">上传中...</div>
+            </div>
+
+            <div class="video-preview" id="videoPreview">
+                <h3>🎥 名场面预演（先确认这盘是不是你要切的）</h3>
+                <div class="video-container">
+                    <video id="previewVideo" controls></video>
+                </div>
+                <div class="file-info" id="fileInfo"></div>
+                <div id="durationWarn" style="display:none;background:#fff7e6;border:1px dashed #ffb74d;border-radius:14px;padding:10px 12px;margin-top:12px;font-size:13px;color:#8a5a00;line-height:1.7;">
+                    ⏱️ <strong id="durationWarnBody"></strong>
+                </div>
+                <div id="estimateCard" style="display:none;background:#f3eeff;border:1px solid #dcd1fb;border-radius:16px;padding:12px 14px;margin-top:12px;font-size:13px;line-height:1.8;color:#4a3d7d;">
+                    🧮 <strong>本次处理预估耗时：</strong><span id="estimateBody"></span>
+                    <div style="margin-top:4px;opacity:0.85;">编码器：<span id="estimateEncoder">探测中…</span>　预算窗口：<span id="estimateBudget"></span></div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">
+                        ⚙️ 切法配置
+                        <span class="form-label-hint">（可选，先练球再出集锦）</span>
+                    </label>
+                    <div class="input-row">
+                        <input type="number" id="minDurationInput" min="0" max="600" step="1" value="5" placeholder="例如 5">
+                        <span class="unit">秒以上的片段才入集锦（低质量网前互搓也能省则省 🌚）</span>
+                    </div>
+                    <div style="font-size:12px;color:#999;margin-top:6px;">
+                        💡 经验之谈：5~10 秒以上，大概率是一整段「多拍回合」；填 0 就是保留所有片段，主打一个原汁原味。
+                    </div>
+                </div>
+                
+                <div class="btn-row">
+                    <button class="btn btn-primary" id="processBtn">
+                        <span class="loading-spinner" id="processSpinner" style="display: none;"></span>
+                        主裁判吹哨，开切！
+                    </button>
+                    <button class="btn btn-secondary" id="reuploadBtn">换个发球（重传）</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="card" id="resultCard" style="display: none;">
+            <div class="section-title">🏆 名场面合集（今日份收获）</div>
+
+            <div class="stats" id="resultStats" style="display: none;"></div>
+
+            <div class="filter-bar" id="filterBar" style="display: none;">
+                <div class="filter-item">
+                    <span>📌 只要长回合（≥</span>
+                    <input type="number" id="viewMinDuration" min="0" step="1" placeholder="0">
+                    <span>秒）</span>
+                </div>
+                <button class="btn btn-secondary btn-small" id="applyFilterBtn">✂️ 按强度筛选</button>
+                <button class="btn btn-secondary btn-small" id="resetFilterBtn">🧹 回满状态，全部都要</button>
+            </div>
+
+            <div class="action-bar" id="actionBar" style="display: none;">
+                <div class="action-bar-left">
+                    <div class="checkbox-wrap">
+                        <input type="checkbox" id="selectAllCheckbox">
+                        <label for="selectAllCheckbox">「打包带走」全选</label>
+                    </div>
+                    <span class="selected-count" id="selectedCount">已圈粉 0 段，准备下载</span>
+                </div>
+                <div class="action-bar-right">
+                    <button class="btn btn-success btn-small" id="downloadSelectedBtn" disabled>
+                        📥 一键抱走勾选（依次弹下载）
+                    </button>
+                </div>
+            </div>
+
+            <div class="output-list" id="outputList">
+                <div class="empty-state">
+                    <div class="empty-state-icon">🎞️</div>
+                    <p>名场面空了～</p>
+                    <p class="empty-state-hint">去上传一局，保证你能笑出声（主打快乐 +1）</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="card" id="historyCard" style="display: none;">
+            <div class="history-header">
+                <div class="section-title" style="margin-bottom:0;">🏛️ 往届名场面（俱乐部档案室）</div>
+                <div class="history-filter">
+                    <span style="font-size:12.5px;color:#666;">🔍 搜球友：只看</span>
+                    <select id="historyTaskNameFilter">
+                        <option value="">全场次（无差别档案室）</option>
+                    </select>
+                    <button class="btn btn-secondary btn-small" id="historyRefreshBtn" type="button">🔄 看看又有谁进球了</button>
+                </div>
+            </div>
+
+            <div class="dy-comment-feed" id="historyList">
+                <div class="dy-empty">
+                    <div class="dy-empty-icon">🕒</div>
+                    <div class="dy-empty-title">档案室空空如也</div>
+                    <div class="dy-empty-desc">快去上传一局，你就是开馆第一人，名字会被永久挂在档案室最上面！</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="comments-card">
+            <div class="section-title">💬 留言墙</div>
+            <div class="comments-summary" id="commentsSummary"></div>
+            <div class="comment-form">
+                <div class="form-block">
+                    <div class="form-label">给服务打个分吧 ⭐️</div>
+                    <div class="comment-rating" id="commentRating">
+                        <span class="star" data-value="1">★</span>
+                        <span class="star" data-value="2">★</span>
+                        <span class="star" data-value="3">★</span>
+                        <span class="star" data-value="4">★</span>
+                        <span class="star" data-value="5">★</span>
+                    </div>
+                </div>
+                <div class="form-block">
+                    <div class="form-label">
+                        ✍️ 说点什么
+                        <span class="form-label-hint">（支持表情 + 文字，和分数一起提交）</span>
+                    </div>
+                    <textarea
+                        id="commentContent"
+                        class="comment-textarea"
+                        maxlength="500"
+                        placeholder="比如：识别超级准！🏸 要是能一键保存到相册就更好啦 💗 或者：3 分钟的视频 10 秒就出结果好惊喜哇 🌟 之类的，都可以告诉我～"></textarea>
+                    <div class="emoji-bar" id="emojiBar">
+                        <button type="button" class="emoji-btn" data-emoji="🏸">🏸</button>
+                        <button type="button" class="emoji-btn" data-emoji="💪">💪</button>
+                        <button type="button" class="emoji-btn" data-emoji="🎉">🎉</button>
+                        <button type="button" class="emoji-btn" data-emoji="💗">💗</button>
+                        <button type="button" class="emoji-btn" data-emoji="🏅">🏅</button>
+                        <button type="button" class="emoji-btn" data-emoji="😎">😎</button>
+                        <button type="button" class="emoji-btn" data-emoji="🥳">🥳</button>
+                        <button type="button" class="emoji-btn" data-emoji="📹">📹</button>
+                        <button type="button" class="emoji-btn" data-emoji="🧸">🧸</button>
+                        <button type="button" class="emoji-btn" data-emoji="🍻">🍻</button>
+                        <button type="button" class="emoji-btn" data-emoji="🐱">🐱</button>
+                        <button type="button" class="emoji-btn" data-emoji="👍">👍</button>
+                    </div>
+                    <div class="comment-submit-row">
+                        <span class="comment-counter"><span id="commentCounter">0</span> / 500</span>
+                        <button type="button" class="btn btn-primary btn-small" id="commentSubmitBtn">发送留言 🚀</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="comments-table-wrap">
+                <table class="comments-table">
+                    <thead>
+                        <tr>
+                            <th style="width:22%;">评论人</th>
+                            <th style="width:18%;">评分</th>
+                            <th style="width:44%;">评论内容</th>
+                            <th style="width:16%;">评论时间</th>
+                        </tr>
+                    </thead>
+                    <tbody id="commentsTbody">
+                        <tr>
+                            <td colspan="4">
+                                <div class="comment-empty">
+                                    <div class="comment-empty-icon">💌</div>
+                                    还没有留言，来当第一个分享心情的小可爱吧！
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="brand" aria-label="无限进步俱乐部" title="点了就快乐，不看点了也进步（不是按钮别点）">
+            <div class="brand-inner">
+                <img class="brand-mark" src="{{ url_for('static', filename='infinite-progress-logo.png') }}" alt="无限进步">
+                <div class="brand-copy">
+                    <span class="brand-slogan">主打快乐，顺带进步</span>
+                    <span class="brand-name">出品方：无限进步俱乐部 · 本馆格言：打一球有一球的欢喜</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <div class="modal-mask" id="identityModal">
+        <div class="modal-dialog">
+            <div class="identity-modal-emoji" id="identityModalEmoji">🏸</div>
+            <div class="modal-title" id="identityModalTitle">先在球馆登记一下你的名字呀～</div>
+            <div class="modal-desc">
+                用你最常用的微信名就可以啦，它会变成你的专属小名片：
+                <br>
+                · 后续上传 / 处理的历史任务只对你自己可见
+                <br>
+                · 留言墙也会用这个名字署名哦 ✍️
+            </div>
+            <div class="input-row">
+                <input type="text" id="identityInput" placeholder="例如：小羽毛 / 阿Li / 小七的羽毛球" maxlength="32" autocomplete="off">
+            </div>
+            <div class="identity-modal-tips">
+                💡 名字会保存在你现在的浏览器里，下次打开还能认出你。
+                <br>
+                🍬 想换身份随时可以点顶部「换个球场昵称」，不过换了以后就看不到之前身份下的历史任务咯～
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" id="identityCancelBtn" type="button">先不登记，偷偷看</button>
+                <button class="btn btn-primary" id="identityConfirmBtn" type="button">就用这个身份上场 🏸</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-mask" id="taskNameModal">
+        <div class="modal-dialog">
+            <div class="modal-title">📝 给这场球起个名字吧？（建议填微信名）</div>
+            <div class="modal-desc">
+                填了微信名，「往届名场面」一搜就是你自己的集锦册；
+                <br>
+                不填我就默认你叫「神秘打球人」，档案室里可是找不到你哦。
+            </div>
+            <div class="input-row">
+                <input type="text" id="taskNameInput" placeholder="例如：张三 · 周三晚场 vs 李哥" maxlength="40" autocomplete="off">
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" id="taskNameCancelBtn" type="button">先不打了，下次再说</button>
+                <button class="btn btn-primary" id="taskNameConfirmBtn" type="button">🏸 主裁判吹哨，开切！</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const WECHAT_NAME_STORAGE_KEY = 'badminton:wechat_name';
+        let wechatName = '';
+        let commentRating = 0;
+        let currentUpload = null;
+        let currentOutputFiles = [];
+        let filteredOutputFiles = [];
+        let selectedUrls = new Set();
+        let lastHistoryPayload = { tasks: [], task_names: [] };
+        let lastCommentsPayload = { comments: [], stats: {} };
+        let currentHistoryFilter = '';
+
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const progressContainer = document.getElementById('progressContainer');
+        const progressFill = document.getElementById('progressFill');
+        const progressText = document.getElementById('progressText');
+        const videoPreview = document.getElementById('videoPreview');
+        const previewVideo = document.getElementById('previewVideo');
+        const fileInfo = document.getElementById('fileInfo');
+        const durationWarnEl = document.getElementById('durationWarn');
+        const durationWarnBodyEl = document.getElementById('durationWarnBody');
+        const estimateCardEl = document.getElementById('estimateCard');
+        const estimateBodyEl = document.getElementById('estimateBody');
+        const estimateEncoderEl = document.getElementById('estimateEncoder');
+        const estimateBudgetEl = document.getElementById('estimateBudget');
+        const processBtn = document.getElementById('processBtn');
+        const processSpinner = document.getElementById('processSpinner');
+        const reuploadBtn = document.getElementById('reuploadBtn');
+        const minDurationInput = document.getElementById('minDurationInput');
+        const resultCard = document.getElementById('resultCard');
+        const resultStats = document.getElementById('resultStats');
+        const filterBar = document.getElementById('filterBar');
+        const viewMinDuration = document.getElementById('viewMinDuration');
+        const applyFilterBtn = document.getElementById('applyFilterBtn');
+        const resetFilterBtn = document.getElementById('resetFilterBtn');
+        const actionBar = document.getElementById('actionBar');
+        const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+        const selectedCount = document.getElementById('selectedCount');
+        const downloadSelectedBtn = document.getElementById('downloadSelectedBtn');
+        const outputList = document.getElementById('outputList');
+        const historyCard = document.getElementById('historyCard');
+        const historyList = document.getElementById('historyList');
+        const historyTaskNameFilter = document.getElementById('historyTaskNameFilter');
+        const historyRefreshBtn = document.getElementById('historyRefreshBtn');
+        const toast = document.getElementById('toast');
+
+        const taskNameModal = document.getElementById('taskNameModal');
+        const taskNameInput = document.getElementById('taskNameInput');
+        const taskNameConfirmBtn = document.getElementById('taskNameConfirmBtn');
+        const taskNameCancelBtn = document.getElementById('taskNameCancelBtn');
+
+        const identityBar = document.getElementById('identityBar');
+        const identityAvatar = document.getElementById('identityAvatar');
+        const identityName = document.getElementById('identityName');
+        const identityEditBtn = document.getElementById('identityEditBtn');
+        const identityModal = document.getElementById('identityModal');
+        const identityInput = document.getElementById('identityInput');
+        const identityConfirmBtn = document.getElementById('identityConfirmBtn');
+        const identityCancelBtn = document.getElementById('identityCancelBtn');
+        const identityModalEmoji = document.getElementById('identityModalEmoji');
+        const identityModalTitle = document.getElementById('identityModalTitle');
+
+        const commentRatingEl = document.getElementById('commentRating');
+        const commentContentEl = document.getElementById('commentContent');
+        const commentSubmitBtn = document.getElementById('commentSubmitBtn');
+        const commentCounterEl = document.getElementById('commentCounter');
+        const commentsSummaryEl = document.getElementById('commentsSummary');
+        const commentsTbodyEl = document.getElementById('commentsTbody');
+        const emojiBarEl = document.getElementById('emojiBar');
+
+        const FETCH_OPTIONS_BASE = { credentials: 'same-origin' };
+        const HOSTED_BASE = '';
+
+        function safeApiUrl(path) {
+            return HOSTED_BASE + path;
+        }
+
+        let runtimeConfig = null;
+
+        function applyRuntimeConfig(cfg) {
+            runtimeConfig = cfg || {};
+            if (runtimeConfig.recommended_max_duration_minutes) {
+                const el = document.getElementById('recommendedMaxMinutes');
+                if (el) el.textContent = runtimeConfig.recommended_max_duration_minutes;
+            }
+        }
+
+        function loadRuntimeConfig() {
+            return fetch(safeApiUrl('/config'), {
+                ...FETCH_OPTIONS_BASE,
+                method: 'GET',
+                headers: { ...getWechatHeader() }
+            })
+            .then(response => response.ok ? response.json() : null)
+            .then(cfg => {
+                if (cfg) applyRuntimeConfig(cfg);
+                return runtimeConfig;
+            })
+            .catch(err => {
+                console.warn('load config failed', err);
+                return null;
+            });
+        }
+
+        function formatRuntimeDuration(totalSeconds) {
+            const total = Math.max(0, Math.round(Number(totalSeconds) || 0));
+            const mins = Math.floor(total / 60);
+            const secs = total % 60;
+            if (mins && secs) return `${mins} 分 ${secs} 秒`;
+            if (mins) return `${mins} 分钟`;
+            return `${secs} 秒`;
+        }
+
+        async function refreshEstimate(opts = {}) {
+            if (!currentUpload || !currentUpload.safe_filename) return;
+            const minDuration = opts.min_duration;
+            const headers = {
+                'Content-Type': 'application/json',
+                ...getWechatHeader()
+            };
+            try {
+                const response = await fetch(safeApiUrl('/api/estimate'), {
+                    ...FETCH_OPTIONS_BASE,
+                    method: 'POST',
+                    headers,
+                    body: JSON.stringify({
+                        safe_filename: currentUpload.safe_filename,
+                        upload_id: currentUpload.upload_id,
+                        min_duration: minDuration
+                    })
+                });
+                if (!response.ok) return null;
+                const payload = await response.json().catch(() => ({}));
+                currentUpload.process_estimate = payload;
+                return payload;
+            } catch (err) {
+                console.warn('estimate failed', err);
+                return null;
+            }
+        }
+
+        function renderDurationAndEstimate(uploadPayload, estimate) {
+            const data = uploadPayload || currentUpload || {};
+            const est = estimate || data.estimate || (data.process_estimate ? data.process_estimate : null);
+            const minutesCap = (runtimeConfig && runtimeConfig.recommended_max_duration_minutes) || 8;
+            const hardMinutesCap = (runtimeConfig && Math.round(runtimeConfig.hard_max_duration_seconds / 60)) || 15;
+            const durationSec = Number(data.duration_seconds) || (data.processing_estimate ? Number(data.processing_estimate.source_duration_seconds) : 0) || 0;
+            const warning = data.warning || (est && est.recommendation_message) || '';
+            const exceedsHard = est ? !!est.exceeds_hard_limit : false;
+            if (durationSec || warning || exceedsHard) {
+                const parts = [];
+                if (data.duration_human || durationSec) {
+                    parts.push(`视频时长 <strong>${escapeHtml(data.duration_human || formatRuntimeDuration(durationSec))}</strong>`);
+                }
+                if (exceedsHard) {
+                    parts.push(`超过 <strong>${hardMinutesCap} 分钟</strong> 硬上限，当前暂不支持，请先裁剪再上传 🙇`);
+                } else if (warning) {
+                    parts.push(escapeHtml(warning));
+                }
+                if (parts.length) {
+                    durationWarnBodyEl.innerHTML = parts.join('　·　');
+                    durationWarnEl.style.display = 'block';
+                } else {
+                    durationWarnEl.style.display = 'none';
+                }
+            } else {
+                durationWarnEl.style.display = 'none';
+            }
+            if (est) {
+                estimateBodyEl.innerHTML = `大约 <strong>${escapeHtml(est.low_human || '-')} ～ ${escapeHtml(est.high_human || '-')}</strong>（中位 ${escapeHtml(est.best_effort_human || '-')}）`;
+                estimateEncoderEl.textContent = est.encoder_label || '自动探测';
+                estimateBudgetEl.textContent = est.budget_human || '3 分钟';
+                estimateCardEl.style.display = 'block';
+                if (processBtn && est.exceeds_recommended && !processBtn.dataset.warnedOnce) {
+                    processBtn.dataset.warnedOnce = '1';
+                }
+            } else {
+                estimateCardEl.style.display = 'none';
+            }
+        }
+
+        function safeApiUrl(path) {
+            return HOSTED_BASE + path;
+        }
+
+        function getWechatHeader() {
+            return wechatName ? { 'X-Wechat-Name': encodeURIComponent(wechatName) } : {};
+        }
+
+        function loadWechatName() {
+            try {
+                const raw = window.localStorage.getItem(WECHAT_NAME_STORAGE_KEY) || '';
+                return (raw || '').trim();
+            } catch (e) {
+                return '';
+            }
+        }
+
+        function saveWechatName(value) {
+            wechatName = value.slice(0, 32);
+            try {
+                window.localStorage.setItem(WECHAT_NAME_STORAGE_KEY, wechatName);
+            } catch (e) {}
+            renderIdentity();
+        }
+
+        function identityInitialChar(name) {
+            if (!name) return '🙋';
+            const first = Array.from(name.trim()).find(c => c && !/\s/.test(c)) || '';
+            if (/[\u4e00-\u9fa5A-Za-z0-9]/.test(first)) return first.toUpperCase();
+            return first || '🙋';
+        }
+
+        function renderIdentity() {
+            if (!wechatName) {
+                identityBar.style.display = 'none';
+                return;
+            }
+            identityBar.style.display = 'flex';
+            identityAvatar.textContent = identityInitialChar(wechatName);
+            identityName.textContent = wechatName;
+        }
+
+        function openIdentityModal(isEdit = false) {
+            identityInput.value = wechatName;
+            identityModalTitle.textContent = isEdit ? '换一个可爱的身份吧 🔁' : '先告诉我你叫什么名字呀～';
+            const rotators = ['🌸', '🏸', '🧸', '💗', '🌟', '🍑', '🐶', '🐱', '🎐'];
+            identityModalEmoji.textContent = rotators[Math.floor(Math.random() * rotators.length)];
+            identityModal.classList.add('show');
+            setTimeout(() => identityInput.focus(), 50);
+        }
+
+        function closeIdentityModal() {
+            identityModal.classList.remove('show');
+        }
+
+        identityConfirmBtn.addEventListener('click', () => {
+            const value = (identityInput.value || '').trim();
+            if (!value) {
+                showWarnToast('先填个名字再走嘛，不然档案室不认你～');
+                identityInput.focus();
+                return;
+            }
+            saveWechatName(value);
+            closeIdentityModal();
+            showSuccessToast(`${value}，欢迎来到无限进步球场！今晚主打快乐，顺便切几段名场面～`);
+            loadHistory();
+            loadComments();
+        });
+
+        identityCancelBtn.addEventListener('click', () => {
+            if (wechatName) {
+                closeIdentityModal();
+                return;
+            }
+            showToast('没填身份也能偷看，但上传和开切会先叫你登记哦 🫣');
+            closeIdentityModal();
+        });
+
+        identityModal.addEventListener('click', (e) => {
+            if (e.target === identityModal) {
+                if (wechatName) closeIdentityModal();
+            }
+        });
+
+        identityInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') identityConfirmBtn.click();
+            if (e.key === 'Escape' && wechatName) closeIdentityModal();
+        });
+
+        identityEditBtn.addEventListener('click', () => openIdentityModal(true));
+
+        function requireWechatName(actionName) {
+            if (wechatName) return true;
+            openIdentityModal(false);
+            const tip = actionName ? `先登记球场身份才能${actionName}哦，不然档案室找不到你这号人🌝` : '先登记球场身份哦，球馆有你更热闹～';
+            setTimeout(() => showWarnToast(tip, 3000), 60);
+            return false;
+        }
+
+        function setCommentRating(value) {
+            commentRating = Math.max(0, Math.min(5, parseInt(value, 10) || 0));
+            commentRatingEl.querySelectorAll('.star').forEach((star) => {
+                const v = parseInt(star.getAttribute('data-value') || '0', 10);
+                star.classList.toggle('active', v <= commentRating);
+            });
+        }
+
+        function renderCommentStars(rating) {
+            const r = Math.max(0, Math.min(5, parseInt(rating, 10) || 0));
+            const filled = '★'.repeat(r);
+            const empty = '☆'.repeat(5 - r);
+            if (r === 0) {
+                return `<span class="comment-stars comment-stars-empty" title="未评分">☆☆☆☆☆</span>`;
+            }
+            return `<span class="comment-stars" title="${r} 星">${filled}</span><span class="comment-stars-empty">${empty}</span>`;
+        }
+
+        function renderCommentsSummary() {
+            const stats = lastCommentsPayload.stats || {};
+            const total = parseInt(stats.total || 0, 10) || 0;
+            const avg = parseFloat(stats.average_rating || 0);
+            const avgStr = total > 0 ? `${avg.toFixed(1)} ⭐️` : '还没有评分';
+            commentsSummaryEl.innerHTML = `
+                <span class="summary-chip">📝 总留言 <strong>${total}</strong> 条</span>
+                <span class="summary-chip">💖 平均评分 <strong>${avgStr}</strong></span>
+                ${wechatName ? `<span class="summary-chip">🙋 我是 <strong>${escapeHtml(wechatName)}</strong></span>` : `<span class="summary-chip">✨ 先填身份，就能留言啦</span>`}
+            `;
+        }
+
+        function renderCommentsTable() {
+            const rows = (lastCommentsPayload.comments || []).slice();
+            if (rows.length === 0) {
+                commentsTbodyEl.innerHTML = `
+                    <tr>
+                        <td colspan="4">
+                            <div class="comment-empty">
+                                <div class="comment-empty-icon">💌</div>
+                                还没有留言，来当第一个分享心情的小可爱吧！
+                            </div>
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+            commentsTbodyEl.innerHTML = rows.map(item => `
+                <tr data-id="${item.id}">
+                    <td class="comment-name-cell">🙋 ${escapeHtml(item.wechat_name || '匿名小可爱')}</td>
+                    <td>${renderCommentStars(item.rating || 0)}</td>
+                    <td class="comment-content-cell">${escapeHtml(item.content || '')}</td>
+                    <td style="white-space:nowrap;color:#777;">${escapeHtml(item.created_at_str || item.created_at || '--')}</td>
+                </tr>
+            `).join('');
+        }
+
+        function loadComments() {
+            fetch(safeApiUrl('/api/comments'), {
+                ...FETCH_OPTIONS_BASE,
+                method: 'GET',
+                headers: { ...getWechatHeader() }
+            })
+                .then(response => parseJsonOrFriendly(response))
+                .then(data => {
+                    lastCommentsPayload = {
+                        comments: data.comments || [],
+                        stats: data.stats || {},
+                    };
+                    renderCommentsSummary();
+                    renderCommentsTable();
+                })
+                .catch(err => {
+                    console.error('load comments failed:', err);
+                    lastCommentsPayload = { comments: [], stats: {} };
+                    renderCommentsSummary();
+                    renderCommentsTable();
+                });
+        }
+
+        commentRatingEl.addEventListener('click', (e) => {
+            const star = e.target.closest('.star');
+            if (!star) return;
+            const value = parseInt(star.getAttribute('data-value') || '0', 10);
+            setCommentRating(commentRating === value ? value - 1 : value);
+        });
+
+        commentRatingEl.addEventListener('mouseover', (e) => {
+            const star = e.target.closest('.star');
+            if (!star) return;
+            const value = parseInt(star.getAttribute('data-value') || '0', 10);
+            commentRatingEl.querySelectorAll('.star').forEach((s) => {
+                const v = parseInt(s.getAttribute('data-value') || '0', 10);
+                s.classList.toggle('active', v <= value);
+            });
+        });
+
+        commentRatingEl.addEventListener('mouseleave', () => {
+            setCommentRating(commentRating);
+        });
+
+        emojiBarEl.addEventListener('click', (e) => {
+            const btn = e.target.closest('.emoji-btn');
+            if (!btn) return;
+            const emoji = btn.getAttribute('data-emoji') || '';
+            if (!emoji) return;
+            const textarea = commentContentEl;
+            const start = textarea.selectionStart;
+            const end = textarea.selectionEnd;
+            const before = textarea.value.slice(0, start);
+            const after = textarea.value.slice(end);
+            const next = before + emoji + after;
+            const limited = next.slice(0, 500);
+            textarea.value = limited;
+            commentCounterEl.textContent = limited.length;
+            const pos = Math.min(start + emoji.length, limited.length);
+            textarea.focus();
+            textarea.setSelectionRange(pos, pos);
+        });
+
+        commentContentEl.addEventListener('input', () => {
+            commentCounterEl.textContent = commentContentEl.value.length;
+        });
+
+        commentSubmitBtn.addEventListener('click', () => {
+            if (!requireWechatName('留言')) return;
+            const content = (commentContentEl.value || '').trim();
+            if (!content) {
+                showToast('先写点东西再发送嘛 ✍️');
+                commentContentEl.focus();
+                return;
+            }
+            if (commentRating < 1) {
+                const ok = window.confirm('还没打分哦，确定就这么发送吗？(也可以用星星点一下评分 ⭐️)');
+                if (!ok) return;
+            }
+            commentSubmitBtn.disabled = true;
+            fetch(safeApiUrl('/api/comments'), {
+                ...FETCH_OPTIONS_BASE,
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...getWechatHeader()
+                },
+                body: JSON.stringify({
+                    rating: commentRating,
+                    content: content,
+                    wechat_name: wechatName,
+                })
+            })
+                .then(async (response) => {
+                    const data = await response.json().catch(() => ({}));
+                    if (response.ok && data.comment) {
+                        showToast('留言发送成功，谢谢你的小可爱 🎀');
+                        commentContentEl.value = '';
+                        commentCounterEl.textContent = '0';
+                        setCommentRating(0);
+                        loadComments();
+                    } else {
+                        showToast('留言失败：' + (data.error || '请稍后重试'));
+                    }
+                })
+                .catch((err) => {
+                    showToast('留言失败：网络异常');
+                    console.error(err);
+                })
+                .finally(() => {
+                    commentSubmitBtn.disabled = false;
+                });
+        });
+
+        function showToast(message, duration = 3000) {
+            toast.textContent = message;
+            toast.classList.add('show');
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, duration);
+        }
+
+        function showSuccessToast(message, duration = 3000) {
+            const endings = ['～无限进步 +1', '～快乐指数 +1', '～主打快乐 +1', '～又多一分名场面'];
+            const ending = endings[Math.floor(Math.random() * endings.length)];
+            showToast('✅ ' + message + ending, duration);
+        }
+
+        function showWarnToast(message, duration = 3000) {
+            const endings = ['～这球出界，换个操作～', '～先吹暂停，再来一次～', '～别慌，擦个汗继续～'];
+            const ending = endings[Math.floor(Math.random() * endings.length)];
+            showToast('⚠️ ' + message + ending, duration);
+        }
+
+        function showErrorToast(message, duration = 4000) {
+            const endings = ['～申诉（重试）一下？', '～先歇 10 秒再战～', '～主裁判吹犯规了～'];
+            const ending = endings[Math.floor(Math.random() * endings.length)];
+            showToast('💥 ' + message + ending, duration);
+        }
+
+        async function parseJsonOrFriendly(response) {
+            const ct = (response.headers.get('content-type') || '').toLowerCase();
+            const rawText = await response.text();
+            const trimmed = rawText.replace(/^\s+|\s+$/g, '');
+            if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+                try { return JSON.parse(trimmed); }
+                catch(e) { /* fallthrough below */ }
+            }
+            if (ct.indexOf('json') >= 0 && trimmed.length === 0) {
+                return {};
+            }
+            const preview = trimmed.length > 160 ? trimmed.slice(0, 160) + '…' : trimmed;
+            const errorMsg = preview
+                ? preview.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
+                : '服务返回了空响应';
+            const friendlyError = errorMsg || '服务返回了一个非 JSON 的错误页面（通常是 404/500 页面）';
+            return {
+                _was_html: true,
+                _status_code: response.status,
+                error: friendlyError,
+            };
+        }
+
+        const COMMENT_QUOTES = [
+            '主打快乐，顺带切了 {n} 段，无限进步 +1。',
+            '{n} 段合集｜这把属于能者多「拉」局，兄弟加鸡腿！',
+            '杀球密度超标｜这把是「一拍绝尘」型选手。',
+            '网前小球选手福音｜吊球精准度可挑战业余省级。',
+            '{n} 段多拍回合｜又练了半局，今晚睡眠质量 +5 分。',
+            '擦网幸运球 x3｜好运气先攒着，下次比赛一并用。',
+            '平抽挡速度拉满｜这节奏看的我脚指头都在动。',
+            '{n} 段精华一次喂饱｜主打一个原汁原味。',
+            '又多了 {n} 段「可以发朋友圈」的素材，稳！',
+            '打出了「业余圈天花板」的名场面，{n} 段全打包带走！'
+        ];
+
+        function pickCommentQuote(task) {
+            const n = Math.max(0, parseInt(task.output_count || ((task.output_files || []).length), 10) || 0);
+            const candidates = COMMENT_QUOTES.map(s => s.replace('{n}', String(n)));
+            const key = (task.upload_id || '') + '|' + n + '|' + (task.created_at || '');
+            let h = 0;
+            for (let i = 0; i < key.length; i++) {
+                h = ((h << 5) - h) + key.charCodeAt(i);
+                h |= 0;
+            }
+            const idx = ((h % candidates.length) + candidates.length) % candidates.length;
+            return candidates[idx];
+        }
+
+        function formatHumanSize(bytes) {
+            if (!bytes && bytes !== 0) return '未知大小';
+            if (bytes < 1024) return bytes + ' B';
+            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+            return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+        }
+
+        function formatSize(bytes) {
+            if (bytes < 1024) return bytes + ' B';
+            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+            return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+        }
+
+        function formatDurationSec(seconds) {
+            if (seconds === null || seconds === undefined || isNaN(seconds)) return '--:--';
+            const m = Math.floor(seconds / 60);
+            const s = Math.floor(seconds % 60);
+            return `${m}:${s.toString().padStart(2, '0')}`;
+        }
+
+        uploadArea.addEventListener('click', () => {
+            fileInput.click();
+        });
+
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+            if (!uploadArea._toastShown) {
+                showToast('接住了！这把一定是个大工程 🏋️', 2500);
+                uploadArea._toastShown = true;
+                setTimeout(() => { uploadArea._toastShown = false; }, 3000);
+            }
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFile(files[0]);
+            }
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFile(e.target.files[0]);
+            }
+        });
+
+        function formatUploadProgressText(percent) {
+            const p = Math.round(percent);
+            if (p < 15) return `🏃 热身中 ${p}%…`;
+            if (p < 55) return `⚡ 平抽挡，速度拉满 ${p}%`;
+            if (p < 95) return `🎯 即将过网，稳住 ${p}%`;
+            return `⏳ 擦网的运气马上就到 ${p}%…`;
+        }
+
+        function handleFile(file) {
+            if (!file.type.startsWith('video/')) {
+                showWarnToast('这颗球出界了～请上传 MP4/MOV/QT/AVI 等视频文件');
+                return;
+            }
+            if (!requireWechatName('上传视频')) return;
+            const minutesCap = (runtimeConfig && runtimeConfig.recommended_max_duration_minutes) || 8;
+            const probeVideo = document.createElement('video');
+            probeVideo.preload = 'metadata';
+            const objectUrl = URL.createObjectURL(file);
+            probeVideo.src = objectUrl;
+            const durationPromise = new Promise((resolve) => {
+                let settled = false;
+                const finish = (val) => {
+                    if (settled) return;
+                    settled = true;
+                    try { probeVideo.removeAttribute('src'); probeVideo.load(); } catch (e) {}
+                    try { URL.revokeObjectURL(objectUrl); } catch (e) {}
+                    resolve(val);
+                };
+                probeVideo.addEventListener('loadedmetadata', () => finish(Number(probeVideo.duration) || 0), { once: true });
+                probeVideo.addEventListener('error', () => finish(0), { once: true });
+                setTimeout(() => finish(0), 8000);
+            });
+            durationPromise.then((preSeconds) => {
+                if (preSeconds > 0) {
+                    const preMinutes = Math.ceil(preSeconds / 60);
+                    if (preMinutes > minutesCap * 1.4) {
+                        const ok = window.confirm(
+                            `这盘视频大概 ${Math.round(preSeconds / 60 * 10) / 10} 分钟。\n建议不超过 ${minutesCap} 分钟，可以保证整体处理在 3 分钟内出结果。\n是否仍然继续上传？`
+                        );
+                        if (!ok) {
+                            showWarnToast('先暂停发球～可以在手机相册里裁到 ' + minutesCap + ' 分钟以内再来哦');
+                            return;
+                        }
+                    }
+                }
+                reallyUpload(file);
+            });
+        }
+
+        function reallyUpload(file) {
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('wechat_name', wechatName);
+
+            uploadArea.style.display = 'none';
+            progressContainer.style.display = 'block';
+            videoPreview.style.display = 'none';
+            resultCard.style.display = 'none';
+            durationWarnEl.style.display = 'none';
+            estimateCardEl.style.display = 'none';
+
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', '/api/upload');
+            try {
+                xhr.setRequestHeader('X-Wechat-Name', encodeURIComponent(wechatName));
+            } catch (e) {}
+
+            xhr.upload.addEventListener('progress', (e) => {
+                if (e.lengthComputable) {
+                    const percent = (e.loaded / e.total) * 100;
+                    progressFill.style.width = percent + '%';
+                    progressText.textContent = formatUploadProgressText(percent);
+                }
+            });
+
+            xhr.onload = () => {
+                if (xhr.status === 200) {
+                    currentUpload = JSON.parse(xhr.responseText);
+
+                    progressContainer.style.display = 'none';
+                    videoPreview.style.display = 'block';
+
+                    previewVideo.src = currentUpload.url;
+                    const infoParts = [
+                        `🎬 录像: ${escapeHtml(currentUpload.filename)}`,
+                        `💾 球包大小: ${formatSize(currentUpload.size)}`,
+                        `🙋 归属: ${escapeHtml(currentUpload.wechat_name || wechatName)}`
+                    ];
+                    if (currentUpload.duration_human) {
+                        infoParts.push(`⏱️ 时长: ${escapeHtml(currentUpload.duration_human)}`);
+                    }
+                    if (currentUpload.width && currentUpload.height) {
+                        infoParts.push(`🖼️ 清晰度: ${currentUpload.width}×${currentUpload.height}`);
+                    }
+                    fileInfo.innerHTML = infoParts.join('<br>');
+
+                    renderDurationAndEstimate(currentUpload);
+                    if (currentUpload.estimate) {
+                        // 已完成
+                    } else if (currentUpload.upload_id) {
+                        refreshEstimate().then((payload) => renderDurationAndEstimate(currentUpload, payload));
+                    }
+                    if (currentUpload.warning && !currentUpload.estimate) {
+                        showWarnToast(currentUpload.warning, 4500);
+                    }
+                    showSuccessToast('热身结束！参数摆一下，准备进入主裁判哨响环节');
+                    loadHistory();
+                } else {
+                    let errorMsg = '上传失败';
+                    let payload = null;
+                    try {
+                        payload = JSON.parse(xhr.responseText);
+                        errorMsg = payload.error || errorMsg;
+                    } catch(e) {}
+                    if (xhr.status === 413 && payload && payload.duration_human) {
+                        showErrorToast('发球过界：' + errorMsg);
+                    } else {
+                        showErrorToast('发球失误：' + errorMsg);
+                    }
+                    resetUpload();
+                }
+            };
+
+            xhr.onerror = () => {
+                showErrorToast('裁判长连线被雷劈了（网络异常），稍后重发一把');
+                resetUpload();
+            };
+
+            xhr.send(formData);
+        }
+
+        function resetUpload() {
+            uploadArea.style.display = 'block';
+            progressContainer.style.display = 'none';
+            videoPreview.style.display = 'none';
+            resultCard.style.display = 'none';
+            durationWarnEl.style.display = 'none';
+            estimateCardEl.style.display = 'none';
+            fileInput.value = '';
+            currentUpload = null;
+            currentOutputFiles = [];
+            filteredOutputFiles = [];
+            selectedUrls.clear();
+        }
+
+        reuploadBtn.addEventListener('click', resetUpload);
+
+        function openTaskNameModal() {
+            const saved = window.localStorage.getItem('badminton:last_task_name') || '';
+            taskNameInput.value = saved;
+            taskNameModal.classList.add('show');
+            setTimeout(() => taskNameInput.focus(), 40);
+        }
+
+        function closeTaskNameModal() {
+            taskNameModal.classList.remove('show');
+        }
+
+        taskNameCancelBtn.addEventListener('click', closeTaskNameModal);
+        taskNameModal.addEventListener('click', (e) => {
+            if (e.target === taskNameModal) closeTaskNameModal();
+        });
+        taskNameInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') taskNameConfirmBtn.click();
+            if (e.key === 'Escape') closeTaskNameModal();
+        });
+
+        taskNameConfirmBtn.addEventListener('click', async () => {
+            if (!requireWechatName('开始处理')) return;
+            const raw = (taskNameInput.value || '').trim() || '神秘打球人';
+            try {
+                window.localStorage.setItem('badminton:last_task_name', raw);
+            } catch (e) {}
+            closeTaskNameModal();
+            const minDur = minDurationInput.value ? parseFloat(minDurationInput.value) : null;
+
+            const estimate = (currentUpload && currentUpload.process_estimate)
+                ? currentUpload.process_estimate
+                : await refreshEstimate({ min_duration: minDur }).catch(() => null);
+            if (estimate) {
+                const human = `大约 ${estimate.low_human || '-'} ～ ${estimate.high_human || '-'}`;
+                const prompt = [
+                    `准备开切啦～主裁判预估：${human}`,
+                    `编码器：${estimate.encoder_label || '自动探测'}（预算窗口：${estimate.budget_human || '3 分钟'}）`,
+                    '',
+                    '现在开始处理吗？这段时间可以喝口水擦擦汗 💦'
+                ].join('\n');
+                const go = window.confirm(prompt);
+                if (!go) {
+                    showToast('已取消，随时可以再次「开切」～');
+                    return;
+                }
+                showToast(`🔥 已开切！${human} 后记得回来收集锦～`, 5200);
+            } else {
+                showToast('🔥 羽球 AI 已上线！切视频约等于打一局 21 分制，请原地休息几分钟～', 5500);
+            }
+
+            processBtn.disabled = true;
+            processSpinner.style.display = 'inline-block';
+            processBtn.innerHTML = '<span class="loading-spinner" id="processSpinner"></span>主裁判正在回放鹰眼…进度拉满中 ⏳';
+
+            fetch('/api/process', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...getWechatHeader()
+                },
+                body: JSON.stringify({
+                    upload_id: currentUpload.upload_id,
+                    safe_filename: currentUpload.safe_filename,
+                    min_duration: minDur,
+                    task_name: raw,
+                    user_name: raw,
+                    wechat_name: wechatName,
+                })
+            })
+            .then(response => parseJsonOrFriendly(response))
+            .then(data => {
+                if (data && data.status === 'completed') {
+                    currentOutputFiles = data.output_files || [];
+                    filteredOutputFiles = [...currentOutputFiles];
+                    selectedUrls.clear();
+                    
+                    showSuccessToast(`名场面产出完毕！共切出 **${data.success_count || 0} 段精华**，今晚 B 站素材有了`);
+                    renderStats(data);
+                    renderOutputs();
+                    resultCard.style.display = 'block';
+                    if (currentOutputFiles.length > 0) {
+                        filterBar.style.display = 'flex';
+                        actionBar.style.display = 'flex';
+                    }
+                    loadHistory();
+                } else {
+                    showErrorToast('哎呀这颗球打框了～错误：' + (data && data.error ? data.error : '主裁判摇了摇头'));
+                }
+            })
+            .catch(err => {
+                showErrorToast('处理出错：' + (err && err.message ? err.message : '网络异常'));
+            })
+            .finally(() => {
+                processBtn.disabled = false;
+                processSpinner.style.display = 'none';
+                processBtn.textContent = '再来一球（重切）';
+            });
+        });
+
+        processBtn.addEventListener('click', () => {
+            if (!currentUpload) return;
+            openTaskNameModal();
+        });
+
+        function renderStats(data) {
+            const total = data.success_count || 0;
+            const files = currentOutputFiles;
+            const totalSize = files.reduce((sum, f) => sum + (f.size || 0), 0);
+            const avgDuration = files.length > 0
+                ? (files.reduce((sum, f) => sum + (f.duration || 0), 0) / files.length)
+                : 0;
+
+            resultStats.innerHTML = `
+                <div class="stat-item">
+                    <div class="stat-value">${total}</div>
+                    <div class="stat-label">产出精华段数</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">${formatSize(totalSize)}</div>
+                    <div class="stat-label">合辑总大小</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">${formatDurationSec(avgDuration)}</div>
+                    <div class="stat-label">平均每段长度</div>
+                </div>
+            `;
+            resultStats.style.display = 'grid';
+        }
+
+        function renderOutputs() {
+            const files = filteredOutputFiles;
+
+            if (!files || files.length === 0) {
+                outputList.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">😅</div>
+                        <p>阈值设太高，长回合不够用</p>
+                        <p class="empty-state-hint">建议把秒数降一降，短平快也是球啊～</p>
+                    </div>
+                `;
+                return;
+            }
+
+            outputList.innerHTML = files.map(file => {
+                const checked = selectedUrls.has(file.url) ? 'checked' : '';
+                return `
+                    <div class="output-item">
+                        <input type="checkbox" class="item-checkbox" data-url="${file.url}" ${checked}>
+                        <div class="output-icon">🎬</div>
+                        <div class="output-info">
+                            <div class="output-name">${file.name}</div>
+                            <div class="output-meta">
+                                <span class="output-meta-item duration">
+                                    ⏱️ ${file.duration_str || formatDurationSec(file.duration)}
+                                </span>
+                                <span class="output-meta-item">
+                                    💾 ${formatSize(file.size)}
+                                </span>
+                            </div>
+                        </div>
+                        <a href="${file.url}" download="${file.name}" class="download-btn" title="单独下载这一段">
+                            ⬇️
+                        </a>
+                    </div>
+                `;
+            }).join('');
+
+            document.querySelectorAll('.item-checkbox').forEach(cb => {
+                cb.addEventListener('change', () => {
+                    const url = cb.getAttribute('data-url');
+                    if (cb.checked) {
+                        selectedUrls.add(url);
+                    } else {
+                        selectedUrls.delete(url);
+                    }
+                    updateSelectionUI();
+                });
+            });
+
+            updateSelectionUI();
+        }
+
+        function updateSelectionUI() {
+            const count = selectedUrls.size;
+            selectedCount.textContent = `已圈粉 ${count} 段，准备下载`;
+            downloadSelectedBtn.disabled = count === 0;
+
+            const visible = filteredOutputFiles.filter(f => selectedUrls.has(f.url)).length;
+            const totalVisible = filteredOutputFiles.length;
+            if (totalVisible > 0 && visible === totalVisible) {
+                selectAllCheckbox.checked = true;
+                selectAllCheckbox.indeterminate = false;
+            } else if (visible > 0) {
+                selectAllCheckbox.checked = false;
+                selectAllCheckbox.indeterminate = true;
+            } else {
+                selectAllCheckbox.checked = false;
+                selectAllCheckbox.indeterminate = false;
+            }
+        }
+
+        selectAllCheckbox.addEventListener('change', () => {
+            if (selectAllCheckbox.checked) {
+                filteredOutputFiles.forEach(f => selectedUrls.add(f.url));
+            } else {
+                filteredOutputFiles.forEach(f => selectedUrls.delete(f.url));
+            }
+            renderOutputs();
+        });
+
+        applyFilterBtn.addEventListener('click', () => {
+            const min = viewMinDuration.value ? parseFloat(viewMinDuration.value) : 0;
+            filteredOutputFiles = currentOutputFiles.filter(f => {
+                const d = f.duration || 0;
+                return d >= min;
+            });
+            if (filteredOutputFiles.length === 0 && (currentOutputFiles || []).length > 0) {
+                showWarnToast('这阈值设得太狠啦，精彩片段都被过滤光了🌚', 2500);
+            } else {
+                showSuccessToast(`筛选出 ${filteredOutputFiles.length} 段「长回合」片段`);
+            }
+            renderOutputs();
+        });
+
+        resetFilterBtn.addEventListener('click', () => {
+            viewMinDuration.value = '';
+            filteredOutputFiles = [...currentOutputFiles];
+            renderOutputs();
+            showToast('已回满状态，所有片段回来啦 🎉');
+        });
+
+        downloadSelectedBtn.addEventListener('click', () => {
+            const toDownload = currentOutputFiles.filter(f => selectedUrls.has(f.url));
+            if (toDownload.length === 0) {
+                showWarnToast('先圈粉（勾选）几段，不然一键抱不走呀～');
+                return;
+            }
+
+            showToast(`🚚 正在依次发货 ${toDownload.length} 段～浏览器如果弹出“允许多次下载”，点一下允许哦！`);
+            toDownload.forEach((file, index) => {
+                setTimeout(() => {
+                    const a = document.createElement('a');
+                    a.href = file.url;
+                    a.download = file.name;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                }, index * 650);
+            });
+        });
+
+        function formatDate(isoString) {
+            if (!isoString) return '--';
+            const d = new Date(isoString);
+            if (isNaN(d.getTime())) return isoString;
+            const pad = (n) => String(n).padStart(2, '0');
+            const y = d.getFullYear();
+            const mo = pad(d.getMonth() + 1);
+            const da = pad(d.getDate());
+            const hh = pad(d.getHours());
+            const mm = pad(d.getMinutes());
+            return `${y}-${mo}-${da} ${hh}:${mm}`;
+        }
+
+        function escapeHtml(str) {
+            if (str === null || str === undefined) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function renderHistoryTaskFilter(names, selectedValue) {
+            const opts = ['<option value="">全场次（无差别档案室）</option>']
+                .concat(names.map(n => {
+                    const safe = escapeHtml(n);
+                    const sel = n === selectedValue ? ' selected' : '';
+                    return `<option value="${safe}"${sel}>只看：${safe} 的档案</option>`;
+                }))
+                .join('');
+            historyTaskNameFilter.innerHTML = opts;
+        }
+
+        function taskInitial(task) {
+            const name = task.task_name || task.user_name || '神';
+            const first = Array.from(String(name).trim()).find(c => c && !/\s/.test(c)) || '神';
+            if (/[\u4e00-\u9fa5A-Za-z0-9]/.test(first)) return first.toUpperCase();
+            return '🏸';
+        }
+
+        function renderCommentFeed(tasks) {
+            if (!tasks || tasks.length === 0) {
+                historyCard.style.display = 'none';
+                historyList.innerHTML = `
+                    <div class="dy-empty">
+                        <div class="dy-empty-icon">🕒</div>
+                        <div class="dy-empty-title">档案室空空如也</div>
+                        <div class="dy-empty-desc">快去上传一局，你就是开馆第一人，名字会被永久挂在档案室最上面！</div>
+                    </div>
+                `;
+                return;
+            }
+
+            historyCard.style.display = 'block';
+            historyList.innerHTML = tasks.map((task, idx) => {
+                const id = 'dy-' + (task.upload_id || String(idx)) + '-' + Math.random().toString(36).slice(2, 7);
+                const quote = pickCommentQuote(task);
+                const createdAt = formatDate(task.created_at);
+                const name = escapeHtml(task.task_name || task.user_name || '神秘打球人');
+                const original = escapeHtml(task.original_filename || task.safe_filename || '无名录像');
+                const upload = escapeHtml(task.upload_url || '');
+                const files = task.output_files || [];
+                const totalDur = files.reduce((s, f) => s + (f.duration || 0), 0);
+                const totalSize = files.reduce((s, f) => s + (f.size || 0), 0);
+                const status = task.status || 'pending';
+                const statusChip = `<span class="chip ${escapeHtml(status)}">${escapeHtml(status)}</span>`;
+                const uploadBtn = upload
+                    ? `<a class="link-btn secondary" href="${upload}" target="_blank" rel="noopener">📄 看原录像</a>`
+                    : '';
+                const previews = (files.length > 4 ? files.slice(0, 4) : files).map(f => `
+                    <a class="link-btn" href="${escapeHtml(f.url)}" download="${escapeHtml(f.name)}" title="${escapeHtml(f.name)}">🎬 ${escapeHtml(f.duration_str || '')}</a>
+                `).join('');
+                const expandBtnHtml = files.length > 4 ? `
+                    <div class="dy-expand">
+                        <button type="button" class="dy-expand-btn" onclick="(function(){const el=document.getElementById('${id}-more');el.classList.toggle('show');this.textContent=el.classList.contains('show')?'收起剩余片段':'展开全部 ${files.length} 段';})()">展开全部 ${files.length} 段</button>
+                        <div class="dy-expand-content" id="${id}-more">
+                            <div style="display:flex;flex-wrap:wrap;gap:6px;">
+                                ${files.slice(4).map(f => `
+                                    <a class="link-btn" href="${escapeHtml(f.url)}" download="${escapeHtml(f.name)}" title="${escapeHtml(f.name)}">🎬 ${escapeHtml(f.duration_str || '')}</a>
+                                `).join('')}
+                            </div>
+                        </div>
+                    </div>
+                ` : '';
+                const quickDownloadHtml = files.length > 0 ? `
+                    <a class="link-btn" href="#" onclick="window._dyDownloadAll(${JSON.stringify(files.map(f => ({url: f.url, name: f.name}))).replace(/"/g, '&quot;')});return false;">📥 一健全下这 ${files.length} 段</a>
+                ` : '';
+                const loadBtnHtml = files.length > 0 ? `
+                    <button type="button" class="link-btn secondary" onclick="window.loadHistoryTask('${escapeHtml(task.upload_id)}')">🎯 载入到上方结果区</button>
+                ` : '';
+                return `
+                    <div class="dy-comment-item" data-upload-id="${escapeHtml(task.upload_id)}">
+                        <div class="dy-avatar" title="这是 ${name} 的名场面哦～">${taskInitial(task)}</div>
+                        <div class="dy-body">
+                            <div class="dy-top-row">
+                                <div class="dy-user-wrap">
+                                    <span class="dy-user-name">${name}</span>
+                                    <span class="dy-user-title">往届名场面 #${idx + 1}</span>
+                                </div>
+                                <span class="dy-time">${createdAt}</span>
+                            </div>
+                            <div class="dy-content">
+                                ${statusChip} <span class="dy-quote-pill">「名场面金句」</span>${escapeHtml(quote)}
+                            </div>
+                            <div class="dy-meta-row">
+                                <span>🎬 录像：${original}</span>
+                                <span>🏆 产出 ${files.length} 段 / 共 ${formatDurationSec(totalDur)}</span>
+                                ${totalSize ? `<span>💾 总大小 ${formatHumanSize(totalSize)}</span>` : ''}
+                                <span>🙋 归属：${name}</span>
+                            </div>
+                            ${files.length > 0 ? `
+                                <div class="dy-files-row">
+                                    ${previews}
+                                </div>
+                                ${expandBtnHtml}
+                            ` : `<div class="dy-meta-row"><span style="color:#9b8fcc;">（这一次还没产出片段哦，可能球还在热身🌝）</span></div>`}
+                            <div class="dy-actions-row">
+                                ${uploadBtn}
+                                ${quickDownloadHtml}
+                                ${loadBtnHtml}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        window._dyDownloadAll = function(files) {
+            const arr = Array.isArray(files) ? files : [];
+            if (arr.length === 0) {
+                showWarnToast('这一局还没产出片段，抱不走哦～');
+                return;
+            }
+            showToast(`🚚 正在依次发货 ${arr.length} 段～浏览器如果拦，点一下「允许多次下载」哦！`);
+            arr.forEach((f, i) => {
+                setTimeout(() => {
+                    const a = document.createElement('a');
+                    a.href = f.url;
+                    a.download = f.name;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                }, i * 600);
+            });
+        };
+
+        function loadHistory() {
+            const url = currentHistoryFilter
+                ? `/api/list?task_name=${encodeURIComponent(currentHistoryFilter)}`
+                : '/api/list';
+            fetch(url, {
+                headers: { ...getWechatHeader() }
+            })
+                .then(response => parseJsonOrFriendly(response))
+                .then(data => {
+                    lastHistoryPayload = {
+                        tasks: data.tasks || [],
+                        task_names: data.task_names || []
+                    };
+                    renderHistoryTaskFilter(lastHistoryPayload.task_names, currentHistoryFilter);
+                    renderCommentFeed(lastHistoryPayload.tasks);
+                })
+                .catch(err => {
+                    showErrorToast('档案室读取失败：' + (err && err.message ? err.message : '网络异常'));
+                    console.error('加载历史失败:', err);
+                });
+        }
+
+        historyTaskNameFilter.addEventListener('change', () => {
+            currentHistoryFilter = historyTaskNameFilter.value;
+            renderHistoryTaskFilter(lastHistoryPayload.task_names, currentHistoryFilter);
+            const tasks = currentHistoryFilter
+                ? (lastHistoryPayload.tasks || []).filter(t => t.task_name === currentHistoryFilter)
+                : (lastHistoryPayload.tasks || []);
+            renderCommentFeed(tasks);
+            if (!currentHistoryFilter) {
+                loadHistory();
+            }
+        });
+
+        historyRefreshBtn.addEventListener('click', () => {
+            showToast('🔄 看看档案室又有谁进球了～', 2000);
+            loadHistory();
+        });
+
+        window.loadHistoryTask = function(uploadId) {
+            const tasks = (lastHistoryPayload.tasks || []).filter(t => t.upload_id === uploadId);
+            if (tasks.length === 0) {
+                loadHistory();
+                return;
+            }
+            const task = tasks[0];
+            const files = task.output_files || [];
+            if (files.length > 0) {
+                currentOutputFiles = files;
+                filteredOutputFiles = [...files];
+                selectedUrls.clear();
+                const totalSize = files.reduce((sum, f) => sum + (f.size || 0), 0);
+                renderStats({
+                    success_count: files.length,
+                    output_files: files
+                });
+                renderOutputs();
+                resultCard.style.display = 'block';
+                filterBar.style.display = 'flex';
+                actionBar.style.display = 'flex';
+                try { window.scrollTo({ top: document.getElementById('resultCard').offsetTop - 20, behavior: 'smooth' }); } catch (e) {}
+                showSuccessToast(`档案室取件成功！载入 ${files.length} 段前世今生（前世精华🎬）`);
+            } else {
+                showWarnToast('这局暂时还没产出片段，先去打一拍再来～');
+            }
+        };
+
+        minDurationInput.addEventListener('input', () => {
+            if (!currentUpload) return;
+            const val = minDurationInput.value ? parseFloat(minDurationInput.value) : null;
+            refreshEstimate({ min_duration: val }).then((payload) => {
+                renderDurationAndEstimate(currentUpload, payload);
+            });
+        });
+
+        function bootstrapPage() {
+            const saved = loadWechatName();
+            if (saved) {
+                saveWechatName(saved);
+            }
+            loadRuntimeConfig().then(() => {
+                loadHistory();
+                loadComments();
+                if (!saved) {
+                    setTimeout(() => {
+                        if (!wechatName) openIdentityModal(false);
+                    }, 400);
+                }
+            });
+        }
+
+        bootstrapPage();
+    </script>
+</body>
+</html>

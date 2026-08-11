@@ -1,0 +1,37 @@
+server {
+    listen 80;
+    server_name {{DOMAIN_OR_IP}};
+
+    # 客户端上传视频大小限制（与 Flask 一致）
+    client_max_body_size 500M;
+
+    # 大文件超时（视频处理是同步阻塞，给足时间）
+    proxy_connect_timeout 60s;
+    proxy_send_timeout 900s;
+    proxy_read_timeout 900s;
+    send_timeout 900s;
+
+    # gzip 压缩前端资源
+    gzip on;
+    gzip_types text/plain text/css application/json application/javascript application/xml image/svg+xml;
+    gzip_min_length 1024;
+
+    access_log /var/log/nginx/badminton.access.log;
+    error_log  /var/log/nginx/badminton.error.log;
+
+    location = /health {
+        proxy_pass http://127.0.0.1:5000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+
+    location / {
+        proxy_pass http://127.0.0.1:5000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_request_buffering off;
+    }
+}

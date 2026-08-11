@@ -1,0 +1,49 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtualenv
+venv/
+.venv/
+env/
+ENV/
+
+# Flask / app runtime
+web/uploads/*
+!web/uploads/.gitkeep
+web/outputs/*
+!web/outputs/.gitkeep
+web/badminton.db
+web/*.db
+logs/
+run/
+.env
+
+# Generated output
+output/
+input_video/
+models/TrackNetV3/TrackNetV3_ckpts.zip
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+.tmp-*
+*.swp
+*.swo
+
+# Top-level scratch video / JSON outputs
+*.mp4
+*.mov
+*.qt
+*.m4v
+*.avi
+*.mkv
+*.json
