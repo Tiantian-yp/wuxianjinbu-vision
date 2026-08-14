@@ -646,7 +646,7 @@
             max-width: 420px;
             background: #fff;
             border-radius: 18px;
-            padding: 22px 22px 18px;
+            padding: 18px 20px 16px;
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
         }
 
@@ -654,20 +654,20 @@
             font-size: 16px;
             font-weight: 700;
             color: #222;
-            margin-bottom: 6px;
+            margin-bottom: 4px;
         }
 
         .modal-desc {
             font-size: 12.5px;
             color: #777;
             line-height: 1.6;
-            margin-bottom: 16px;
+            margin-bottom: 12px;
         }
 
         .modal-actions {
             display: flex;
             gap: 10px;
-            margin-top: 16px;
+            margin-top: 12px;
         }
 
         .modal-actions .btn {
@@ -881,19 +881,24 @@
 
         .identity-modal-emoji {
             text-align: center;
-            font-size: 46px;
-            line-height: 1.1;
-            margin: 4px 0 10px;
+            font-size: 24px;
+            line-height: 1;
+            height: 26px;
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 0 6px;
         }
 
         .identity-modal-tips {
-            font-size: 12px;
+            font-size: 11.5px;
             color: #8e7cbb;
-            margin-top: 10px;
-            padding: 10px 12px;
+            margin-top: 6px;
+            padding: 8px 10px;
             background: #f5f1ff;
             border-radius: 12px;
-            line-height: 1.6;
+            line-height: 1.55;
         }
 
         .comments-card {
@@ -991,37 +996,78 @@
 
         .emoji-bar {
             display: flex;
-            gap: 8px;
+            gap: 12px 8px;
             flex-wrap: wrap;
-            margin: 10px 0 4px;
+            margin: 8px 0 4px;
+            justify-content: flex-start;
+        }
+
+        .emoji-cell {
+            display: inline-flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            flex: 0 0 auto;
+            gap: 4px;
+            user-select: none;
         }
 
         .emoji-btn {
-            border: 1px dashed #ded4ff;
-            background: #fff;
-            color: #222;
-            -webkit-text-fill-color: #222;
-            border-radius: 999px;
-            padding: 6px 10px;
-            min-width: 34px;
-            min-height: 30px;
-            font-size: 18px;
+            border: 1.5px dashed #cbb8ff;
+            background: #ffffff;
+            color: #222 !important;
+            -webkit-text-fill-color: initial;
+            border-radius: 50%;
+            padding: 0;
+            width: 36px;
+            height: 36px;
+            flex: 0 0 36px;
+            font-size: 18px !important;
             line-height: 1;
-            display: inline-flex;
+            letter-spacing: 0;
+            display: inline-flex !important;
             align-items: center;
             justify-content: center;
             cursor: pointer;
-            transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease;
-            font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", -apple-system, BlinkMacSystemFont, sans-serif;
-            text-indent: 0;
+            transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+            font-family: "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji", "Android Emoji", "EmojiOne Color", "Twemoji Mozilla", system-ui, -apple-system, BlinkMacSystemFont, sans-serif !important;
+            text-indent: 0 !important;
             text-shadow: none;
             box-sizing: border-box;
+            position: relative;
+            z-index: 1;
+            white-space: nowrap;
+            overflow: visible;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            font-variant-emoji: color;
+            speak: never;
         }
 
         .emoji-btn:hover {
-            transform: translateY(-1px) scale(1.04);
+            transform: translateY(-1px) scale(1.03);
             background: #f6f0ff;
             border-color: #c3b0ff;
+            box-shadow: 0 3px 8px -4px rgba(157, 123, 255, 0.42);
+        }
+
+        .emoji-btn:active {
+            transform: translateY(0) scale(0.97);
+        }
+
+        .emoji-label {
+            font-size: 10.5px;
+            line-height: 1.1;
+            color: #7a6fb3;
+            text-align: center;
+            white-space: nowrap;
+            letter-spacing: 0.02em;
+            font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+            font-weight: 500;
+            pointer-events: none;
+            max-width: 52px;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         .comment-submit-row {
@@ -1108,9 +1154,15 @@
         }
 
         .comment-empty-icon {
-            font-size: 40px;
+            font-size: 30px;
             margin-bottom: 8px;
-            opacity: 0.8;
+            opacity: 0.85;
+        }
+        .comment-empty-icon img.twemoji {
+            width: 40px;
+            height: 40px;
+            margin: 0 auto;
+            display: block;
         }
 
         @media (max-width: 380px) {
@@ -1330,7 +1382,52 @@
             line-height: 1.7;
             color: #7a6db0;
         }
+
+        img.twemoji {
+            display: inline-block;
+            width: 1em;
+            height: 1em;
+            margin: -0.08em 0.05em 0;
+            vertical-align: -0.14em;
+            object-fit: contain;
+            background: transparent;
+            pointer-events: none;
+        }
+
+        .identity-avatar img.twemoji,
+        .identity-modal-emoji img.twemoji {
+            width: 26px;
+            height: 26px;
+            max-width: 26px;
+            max-height: 26px;
+            object-fit: contain;
+            margin: 0;
+            vertical-align: middle;
+        }
+
+        .dy-avatar img.twemoji {
+            width: 52%;
+            height: 52%;
+            object-fit: contain;
+            margin: 0;
+            vertical-align: middle;
+        }
+
+        .dy-empty-icon img.twemoji {
+            width: 52px;
+            height: 52px;
+            margin: 0;
+        }
+
+        .emoji-btn img.twemoji {
+            width: 72%;
+            height: 72%;
+            object-fit: contain;
+            margin: 0;
+            vertical-align: middle;
+        }
     </style>
+    <script src="https://cdn.jsdelivr.net/npm/twemoji@14.0.2/dist/twemoji.min.js"></script>
 </head>
 <body>
     <div class="container">
@@ -1488,18 +1585,25 @@
                         maxlength="500"
                         placeholder="比如：识别超级准！🏸 要是能一键保存到相册就更好啦 💗 或者：3 分钟的视频 10 秒就出结果好惊喜哇 🌟 之类的，都可以告诉我～"></textarea>
                     <div class="emoji-bar" id="emojiBar">
-                        <button type="button" class="emoji-btn" data-emoji="🏸">🏸</button>
-                        <button type="button" class="emoji-btn" data-emoji="💪">💪</button>
-                        <button type="button" class="emoji-btn" data-emoji="🎉">🎉</button>
-                        <button type="button" class="emoji-btn" data-emoji="💗">💗</button>
-                        <button type="button" class="emoji-btn" data-emoji="🏅">🏅</button>
-                        <button type="button" class="emoji-btn" data-emoji="😎">😎</button>
-                        <button type="button" class="emoji-btn" data-emoji="🥳">🥳</button>
-                        <button type="button" class="emoji-btn" data-emoji="📹">📹</button>
-                        <button type="button" class="emoji-btn" data-emoji="🧸">🧸</button>
-                        <button type="button" class="emoji-btn" data-emoji="🍻">🍻</button>
-                        <button type="button" class="emoji-btn" data-emoji="🐱">🐱</button>
-                        <button type="button" class="emoji-btn" data-emoji="👍">👍</button>
+                        <span class="emoji-cell"><button type="button" class="emoji-btn" data-emoji="🫡" title="敬礼 Yes Sir">🫡</button><span class="emoji-label">敬礼</span></span>
+                        <span class="emoji-cell"><button type="button" class="emoji-btn" data-emoji="🙋" title="举个小手">🙋</button><span class="emoji-label">举手</span></span>
+                        <span class="emoji-cell"><button type="button" class="emoji-btn" data-emoji="✅" title="Yes 过过过">✅</button><span class="emoji-label">Yes</span></span>
+                        <span class="emoji-cell"><button type="button" class="emoji-btn" data-emoji="🎖️" title="送你小红花">🎖️</button><span class="emoji-label">小红花</span></span>
+                        <span class="emoji-cell"><button type="button" class="emoji-btn" data-emoji="💯" title="满分 100">💯</button><span class="emoji-label">100分</span></span>
+                        <span class="emoji-cell"><button type="button" class="emoji-btn" data-emoji="🔥" title="666 燃起来">🔥</button><span class="emoji-label">666</span></span>
+                        <span class="emoji-cell"><button type="button" class="emoji-btn" data-emoji="✨" title="星光 666">✨</button><span class="emoji-label">星光版</span></span>
+                        <span class="emoji-cell"><button type="button" class="emoji-btn" data-emoji="🏆" title="冠军名场面">🏆</button><span class="emoji-label">冠军</span></span>
+                        <span class="emoji-cell"><button type="button" class="emoji-btn" data-emoji="👊" title="碰拳 给力">👊</button><span class="emoji-label">碰拳</span></span>
+                        <span class="emoji-cell"><button type="button" class="emoji-btn" data-emoji="🎬" title="名场面预定">🎬</button><span class="emoji-label">名场面</span></span>
+                        <span class="emoji-cell"><button type="button" class="emoji-btn" data-emoji="⚡" title="闪电秒切">⚡</button><span class="emoji-label">秒切</span></span>
+                        <span class="emoji-cell"><button type="button" class="emoji-btn" data-emoji="💪" title="加油 冲鸭">💪</button><span class="emoji-label">加油</span></span>
+                        <span class="emoji-cell"><button type="button" class="emoji-btn" data-emoji="😂" title="笑不活了">😂</button><span class="emoji-label">笑不活</span></span>
+                        <span class="emoji-cell"><button type="button" class="emoji-btn" data-emoji="🙏" title="多谢大佬">🙏</button><span class="emoji-label">多谢</span></span>
+                        <span class="emoji-cell"><button type="button" class="emoji-btn" data-emoji="💗" title="爱了爱了">💗</button><span class="emoji-label">爱了</span></span>
+                        <span class="emoji-cell"><button type="button" class="emoji-btn" data-emoji="👍" title="必须点赞">👍</button><span class="emoji-label">赞</span></span>
+                        <span class="emoji-cell"><button type="button" class="emoji-btn" data-emoji="🏸" title="羽毛球本球">🏸</button><span class="emoji-label">羽毛球</span></span>
+                        <span class="emoji-cell"><button type="button" class="emoji-btn" data-emoji="🚀" title="无限进步冲鸭">🚀</button><span class="emoji-label">无限进步</span></span>
+                        <span class="emoji-cell"><button type="button" class="emoji-btn" data-emoji="🎉" title="主打快乐名场面">🎉</button><span class="emoji-label">主打快乐</span></span>
                     </div>
                     <div class="comment-submit-row">
                         <span class="comment-counter"><span id="commentCounter">0</span> / 500</span>
@@ -1589,6 +1693,39 @@
         </div>
     </div>
 
+    <script>
+        window.twemoji = null;
+        window.__twemojiLoadFailed = false;
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/twemoji@14.0.2/dist/twemoji.min.js"
+            onerror="window.__twemojiLoadFailed=true;window.twemoji=null;console.warn('[badminton] Twemoji CDN failed, fallback to native emoji');"></script>
+    <script>
+        (function () {
+            function safeTwemoji() {
+                try {
+                    if (window.__twemojiLoadFailed) return null;
+                    if (window.twemoji && typeof window.twemoji.parse === 'function') return window.twemoji;
+                } catch (e) {}
+                return null;
+            }
+            window.parseEmojiIfAble = function (root) {
+                const tw = safeTwemoji();
+                if (!tw) return;
+                const target = root || document.body;
+                if (!target) return;
+                try {
+                    tw.parse(target, {
+                        folder: 'svg',
+                        ext: '.svg',
+                        base: 'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/',
+                        className: 'twemoji'
+                    });
+                } catch (e) {
+                    console.warn('[badminton] twemoji.parse failed, fallback to native:', e && e.message);
+                }
+            };
+        })();
+    </script>
     <script>
         const WECHAT_NAME_STORAGE_KEY = 'badminton:wechat_name';
         let wechatName = '';
@@ -1804,33 +1941,37 @@
         }
 
         function renderIdentity() {
+            if (!identityBar) return;
             if (!wechatName) {
                 identityBar.style.display = 'none';
                 return;
             }
             identityBar.style.display = 'flex';
-            identityAvatar.textContent = identityInitialChar(wechatName);
-            identityName.textContent = wechatName;
+            if (identityAvatar) identityAvatar.textContent = identityInitialChar(wechatName);
+            if (identityName) identityName.textContent = wechatName;
+            if (typeof window.parseEmojiIfAble === 'function') window.parseEmojiIfAble(identityBar);
         }
 
         function openIdentityModal(isEdit = false) {
-            identityInput.value = wechatName;
-            identityModalTitle.textContent = isEdit ? '换一个可爱的身份吧 🔁' : '先告诉我你叫什么名字呀～';
+            if (!identityModal) return;
+            if (identityInput) identityInput.value = wechatName;
+            if (identityModalTitle) identityModalTitle.textContent = isEdit ? '换一个可爱的身份吧 🔁' : '先告诉我你叫什么名字呀～';
             const rotators = ['🌸', '🏸', '🧸', '💗', '🌟', '🍑', '🐶', '🐱', '🎐'];
-            identityModalEmoji.textContent = rotators[Math.floor(Math.random() * rotators.length)];
+            if (identityModalEmoji) identityModalEmoji.textContent = rotators[Math.floor(Math.random() * rotators.length)];
             identityModal.classList.add('show');
-            setTimeout(() => identityInput.focus(), 50);
+            if (typeof window.parseEmojiIfAble === 'function') window.parseEmojiIfAble(identityModal);
+            if (identityInput) setTimeout(() => identityInput.focus(), 50);
         }
 
         function closeIdentityModal() {
-            identityModal.classList.remove('show');
+            if (identityModal) identityModal.classList.remove('show');
         }
 
-        identityConfirmBtn.addEventListener('click', () => {
-            const value = (identityInput.value || '').trim();
+        identityConfirmBtn && identityConfirmBtn.addEventListener('click', () => {
+            const value = (identityInput && identityInput.value || '').trim();
             if (!value) {
                 showWarnToast('先填个名字再走嘛，不然档案室不认你～');
-                identityInput.focus();
+                identityInput && identityInput.focus();
                 return;
             }
             saveWechatName(value);
@@ -1840,7 +1981,7 @@
             loadComments();
         });
 
-        identityCancelBtn.addEventListener('click', () => {
+        identityCancelBtn && identityCancelBtn.addEventListener('click', () => {
             if (wechatName) {
                 closeIdentityModal();
                 return;
@@ -1849,18 +1990,18 @@
             closeIdentityModal();
         });
 
-        identityModal.addEventListener('click', (e) => {
+        identityModal && identityModal.addEventListener('click', (e) => {
             if (e.target === identityModal) {
                 if (wechatName) closeIdentityModal();
             }
         });
 
-        identityInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') identityConfirmBtn.click();
+        identityInput && identityInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && identityConfirmBtn) identityConfirmBtn.click();
             if (e.key === 'Escape' && wechatName) closeIdentityModal();
         });
 
-        identityEditBtn.addEventListener('click', () => openIdentityModal(true));
+        identityEditBtn && identityEditBtn.addEventListener('click', () => openIdentityModal(true));
 
         function requireWechatName(actionName) {
             if (wechatName) return true;
@@ -1898,6 +2039,7 @@
                 <span class="summary-chip">💖 平均评分 <strong>${avgStr}</strong></span>
                 ${wechatName ? `<span class="summary-chip">🙋 我是 <strong>${escapeHtml(wechatName)}</strong></span>` : `<span class="summary-chip">✨ 先填身份，就能留言啦</span>`}
             `;
+            if (typeof window.parseEmojiIfAble === 'function') window.parseEmojiIfAble(commentsSummaryEl);
         }
 
         function renderCommentsTable() {
@@ -1913,6 +2055,7 @@
                         </td>
                     </tr>
                 `;
+                if (typeof window.parseEmojiIfAble === 'function') window.parseEmojiIfAble(commentsTbodyEl);
                 return;
             }
             commentsTbodyEl.innerHTML = rows.map(item => `
@@ -1923,6 +2066,7 @@
                     <td style="white-space:nowrap;color:#777;">${escapeHtml(item.created_at_str || item.created_at || '--')}</td>
                 </tr>
             `).join('');
+            if (typeof window.parseEmojiIfAble === 'function') window.parseEmojiIfAble(commentsTbodyEl);
         }
 
         function loadComments() {
@@ -1948,14 +2092,14 @@
                 });
         }
 
-        commentRatingEl.addEventListener('click', (e) => {
+        commentRatingEl && commentRatingEl.addEventListener('click', (e) => {
             const star = e.target.closest('.star');
             if (!star) return;
             const value = parseInt(star.getAttribute('data-value') || '0', 10);
             setCommentRating(commentRating === value ? value - 1 : value);
         });
 
-        commentRatingEl.addEventListener('mouseover', (e) => {
+        commentRatingEl && commentRatingEl.addEventListener('mouseover', (e) => {
             const star = e.target.closest('.star');
             if (!star) return;
             const value = parseInt(star.getAttribute('data-value') || '0', 10);
@@ -1965,16 +2109,17 @@
             });
         });
 
-        commentRatingEl.addEventListener('mouseleave', () => {
+        commentRatingEl && commentRatingEl.addEventListener('mouseleave', () => {
             setCommentRating(commentRating);
         });
 
-        emojiBarEl.addEventListener('click', (e) => {
+        emojiBarEl && emojiBarEl.addEventListener('click', (e) => {
             const btn = e.target.closest('.emoji-btn');
             if (!btn) return;
             const emoji = btn.getAttribute('data-emoji') || '';
             if (!emoji) return;
             const textarea = commentContentEl;
+            if (!textarea) return;
             const start = textarea.selectionStart;
             const end = textarea.selectionEnd;
             const before = textarea.value.slice(0, start);
@@ -1982,18 +2127,19 @@
             const next = before + emoji + after;
             const limited = next.slice(0, 500);
             textarea.value = limited;
-            commentCounterEl.textContent = limited.length;
+            if (commentCounterEl) commentCounterEl.textContent = limited.length;
             const pos = Math.min(start + emoji.length, limited.length);
             textarea.focus();
             textarea.setSelectionRange(pos, pos);
         });
 
-        commentContentEl.addEventListener('input', () => {
-            commentCounterEl.textContent = commentContentEl.value.length;
+        commentContentEl && commentContentEl.addEventListener('input', () => {
+            if (commentCounterEl) commentCounterEl.textContent = commentContentEl.value.length;
         });
 
-        commentSubmitBtn.addEventListener('click', () => {
+        commentSubmitBtn && commentSubmitBtn.addEventListener('click', () => {
             if (!requireWechatName('留言')) return;
+            if (!commentContentEl) return;
             const content = (commentContentEl.value || '').trim();
             if (!content) {
                 showToast('先写点东西再发送嘛 ✍️');
@@ -2023,7 +2169,7 @@
                     if (response.ok && data.comment) {
                         showToast('留言发送成功，谢谢你的小可爱 🎀');
                         commentContentEl.value = '';
-                        commentCounterEl.textContent = '0';
+                        if (commentCounterEl) commentCounterEl.textContent = '0';
                         setCommentRating(0);
                         loadComments();
                     } else {
@@ -2040,6 +2186,10 @@
         });
 
         function showToast(message, duration = 3000) {
+            if (!toast) {
+                console.warn('[toast]', message);
+                return;
+            }
             toast.textContent = message;
             toast.classList.add('show');
             setTimeout(() => {
@@ -2134,8 +2284,8 @@
             return `${m}:${s.toString().padStart(2, '0')}`;
         }
 
-        uploadArea.addEventListener('click', () => {
-            fileInput.click();
+        uploadArea && uploadArea.addEventListener('click', () => {
+            if (fileInput) fileInput.click();
         });
 
         uploadArea.addEventListener('dragover', (e) => {
@@ -2315,26 +2465,28 @@
         reuploadBtn.addEventListener('click', resetUpload);
 
         function openTaskNameModal() {
-            const saved = window.localStorage.getItem('badminton:last_task_name') || '';
-            taskNameInput.value = saved;
+            if (!taskNameModal) return;
+            let saved = '';
+            try { saved = window.localStorage.getItem('badminton:last_task_name') || ''; } catch (e) {}
+            if (taskNameInput) taskNameInput.value = saved;
             taskNameModal.classList.add('show');
-            setTimeout(() => taskNameInput.focus(), 40);
+            if (taskNameInput) setTimeout(() => taskNameInput.focus(), 40);
         }
 
         function closeTaskNameModal() {
-            taskNameModal.classList.remove('show');
+            if (taskNameModal) taskNameModal.classList.remove('show');
         }
 
-        taskNameCancelBtn.addEventListener('click', closeTaskNameModal);
-        taskNameModal.addEventListener('click', (e) => {
+        taskNameCancelBtn && taskNameCancelBtn.addEventListener('click', closeTaskNameModal);
+        taskNameModal && taskNameModal.addEventListener('click', (e) => {
             if (e.target === taskNameModal) closeTaskNameModal();
         });
-        taskNameInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') taskNameConfirmBtn.click();
+        taskNameInput && taskNameInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && taskNameConfirmBtn) taskNameConfirmBtn.click();
             if (e.key === 'Escape') closeTaskNameModal();
         });
 
-        taskNameConfirmBtn.addEventListener('click', async () => {
+        taskNameConfirmBtn && taskNameConfirmBtn.addEventListener('click', async () => {
             if (!requireWechatName('开始处理')) return;
             const raw = (taskNameInput.value || '').trim() || '神秘打球人';
             try {
@@ -2454,6 +2606,7 @@
                         <p class="empty-state-hint">建议把秒数降一降，短平快也是球啊～</p>
                     </div>
                 `;
+                if (typeof window.parseEmojiIfAble === 'function') window.parseEmojiIfAble(outputList);
                 return;
             }
 
@@ -2493,6 +2646,7 @@
                 });
             });
 
+            if (typeof window.parseEmojiIfAble === 'function') window.parseEmojiIfAble(outputList);
             updateSelectionUI();
         }
 
@@ -2616,6 +2770,7 @@
                         <div class="dy-empty-desc">快去上传一局，你就是开馆第一人，名字会被永久挂在档案室最上面！</div>
                     </div>
                 `;
+                if (typeof window.parseEmojiIfAble === 'function') window.parseEmojiIfAble(historyList);
                 return;
             }
 
@@ -2691,6 +2846,7 @@
                     </div>
                 `;
             }).join('');
+            if (typeof window.parseEmojiIfAble === 'function') window.parseEmojiIfAble(historyList);
         }
 
         window._dyDownloadAll = function(files) {
@@ -2779,7 +2935,7 @@
             }
         };
 
-        minDurationInput.addEventListener('input', () => {
+        minDurationInput && minDurationInput.addEventListener('input', () => {
             if (!currentUpload) return;
             const val = minDurationInput.value ? parseFloat(minDurationInput.value) : null;
             refreshEstimate({ min_duration: val }).then((payload) => {
@@ -2787,8 +2943,26 @@
             });
         });
 
+        function checkCriticalDoms() {
+            const critical = {
+                uploadArea, fileInput, toast, commentSubmitBtn, commentContentEl,
+                commentRatingEl, emojiBarEl, processBtn, resultCard, identityModal,
+                taskNameModal, historyList
+            };
+            const missing = [];
+            Object.entries(critical).forEach(([name, el]) => {
+                if (!el) missing.push(name);
+            });
+            if (missing.length > 0) {
+                console.warn('[badminton] Missing DOM elements (some features may be disabled):', missing.join(', '));
+            }
+            return missing.length === 0;
+        }
+
         function bootstrapPage() {
-            const saved = loadWechatName();
+            checkCriticalDoms();
+            let saved = null;
+            try { saved = localStorage.getItem(WECHAT_NAME_STORAGE_KEY); } catch (e) {}
             if (saved) {
                 saveWechatName(saved);
             }
@@ -2800,7 +2974,14 @@
                         if (!wechatName) openIdentityModal(false);
                     }, 400);
                 }
+            }).catch((err) => {
+                console.error('[badminton] runtime config load failed:', err);
+                loadHistory();
+                loadComments();
             });
+            if (typeof window.parseEmojiIfAble === 'function') {
+                try { window.parseEmojiIfAble(document.body); } catch (e) { console.warn('[badminton] parseEmojiIfAble failed:', e); }
+            }
         }
 
         bootstrapPage();
