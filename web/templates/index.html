@@ -441,14 +441,14 @@
         }
 
         .output-list {
-            max-height: 500px;
+            max-height: 600px;
             overflow-y: auto;
         }
 
         .output-item {
             background: #f8f9fa;
             border-radius: 12px;
-            padding: 14px;
+            padding: 12px;
             margin-bottom: 10px;
             display: flex;
             align-items: center;
@@ -468,17 +468,29 @@
             flex-shrink: 0;
         }
 
-        .output-icon {
-            width: 44px;
-            height: 44px;
+        .output-thumb {
+            width: 80px;
+            height: 56px;
+            border-radius: 8px;
+            object-fit: cover;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border-radius: 10px;
+            flex-shrink: 0;
             display: flex;
             align-items: center;
             justify-content: center;
             color: white;
-            font-size: 20px;
-            flex-shrink: 0;
+            font-size: 24px;
+            overflow: hidden;
+        }
+
+        .output-thumb img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .output-icon {
+            display: none;
         }
 
         .output-info {
@@ -498,8 +510,9 @@
 
         .output-meta {
             display: flex;
-            gap: 12px;
+            gap: 10px;
             flex-wrap: wrap;
+            align-items: center;
         }
 
         .output-meta-item {
@@ -513,6 +526,47 @@
         .output-meta-item.duration {
             color: #11998e;
             font-weight: 600;
+        }
+
+        .excitement-stars {
+            color: #ffb400;
+            font-size: 12px;
+            letter-spacing: 1px;
+        }
+
+        .sort-bar {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .sort-btn {
+            padding: 5px 12px;
+            border-radius: 999px;
+            border: 1px solid #e0e0e0;
+            background: #fff;
+            font-size: 12px;
+            font-weight: 600;
+            color: #666;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .sort-btn.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #fff;
+            border-color: transparent;
+        }
+
+        .merge-btn {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%) !important;
+        }
+
+        .merge-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(17, 153, 142, 0.4) !important;
         }
 
         .download-btn {
@@ -1515,6 +1569,13 @@
                 <button class="btn btn-secondary btn-small" id="resetFilterBtn">🧹 回满状态，全部都要</button>
             </div>
 
+            <div class="sort-bar" id="sortBar" style="display: none;">
+                <span style="font-size:12px;color:#999;font-weight:600;">✨ 排序：</span>
+                <button class="sort-btn active" data-sort="excitement">🔥 精彩度</button>
+                <button class="sort-btn" data-sort="duration">⏱️ 时长优先</button>
+                <button class="sort-btn" data-sort="original">📋 原始顺序</button>
+            </div>
+
             <div class="action-bar" id="actionBar" style="display: none;">
                 <div class="action-bar-left">
                     <div class="checkbox-wrap">
@@ -1524,8 +1585,11 @@
                     <span class="selected-count" id="selectedCount">已圈粉 0 段，准备下载</span>
                 </div>
                 <div class="action-bar-right">
-                    <button class="btn btn-success btn-small" id="downloadSelectedBtn" disabled>
-                        📥 一键抱走勾选（依次弹下载）
+                    <button class="btn btn-success btn-small merge-btn" id="mergeSelectedBtn" disabled>
+                        🎬 合并导出精彩集锦
+                    </button>
+                    <button class="btn btn-secondary btn-small" id="downloadSelectedBtn" disabled style="margin-left:8px;">
+                        📥 逐个下载
                     </button>
                 </div>
             </div>
@@ -1733,7 +1797,10 @@
         let currentUpload = null;
         let currentOutputFiles = [];
         let filteredOutputFiles = [];
+        let originalOutputOrder = [];
+        let currentSortMode = 'excitement';
         let selectedUrls = new Set();
+        let mergedFiles = [];
         let lastHistoryPayload = { tasks: [], task_names: [] };
         let lastCommentsPayload = { comments: [], stats: {} };
         let currentHistoryFilter = '';
@@ -2466,11 +2533,22 @@
             resultCard.style.display = 'none';
             durationWarnEl.style.display = 'none';
             estimateCardEl.style.display = 'none';
+            filterBar.style.display = 'none';
+            sortBar.style.display = 'none';
+            actionBar.style.display = 'none';
+            const mergedContainer = document.getElementById('mergedResultContainer');
+            if (mergedContainer) mergedContainer.remove();
             fileInput.value = '';
             currentUpload = null;
             currentOutputFiles = [];
             filteredOutputFiles = [];
+            originalOutputOrder = [];
+            mergedFiles = [];
             selectedUrls.clear();
+            currentSortMode = 'excitement';
+            document.querySelectorAll('.sort-btn').forEach(b => {
+                b.classList.toggle('active', b.getAttribute('data-sort') === 'excitement');
+            });
         }
 
         reuploadBtn.addEventListener('click', resetUpload);
@@ -2558,7 +2636,8 @@
                     cleanupSSE();
                     const result = data.result || {};
                     currentOutputFiles = result.output_files || [];
-                    filteredOutputFiles = [...currentOutputFiles];
+                    originalOutputOrder = [...currentOutputFiles];
+                    applySortAndFilter();
                     selectedUrls.clear();
                     progressFill.style.width = '100%';
                     progressText.textContent = '🎉 处理完成！正在加载结果…';
@@ -2570,6 +2649,7 @@
                     videoPreview.style.display = 'block';
                     if (currentOutputFiles.length > 0) {
                         filterBar.style.display = 'flex';
+                        sortBar.style.display = 'flex';
                         actionBar.style.display = 'flex';
                     }
                     processBtn.disabled = false;
@@ -2720,14 +2800,19 @@
                 return;
             }
 
-            outputList.innerHTML = files.map(file => {
+            outputList.innerHTML = files.map((file, idx) => {
                 const checked = selectedUrls.has(file.url) ? 'checked' : '';
+                const stars = file.excitement_stars || 3;
+                const starHtml = '⭐'.repeat(stars) + '<span style="color:#ddd;">☆</span>'.repeat(5 - stars);
+                const thumbHtml = file.thumbnail_url
+                    ? `<div class="output-thumb"><img src="${file.thumbnail_url}" alt="封面" loading="lazy"></div>`
+                    : `<div class="output-thumb">🎬</div>`;
                 return `
                     <div class="output-item">
-                        <input type="checkbox" class="item-checkbox" data-url="${file.url}" ${checked}>
-                        <div class="output-icon">🎬</div>
+                        <input type="checkbox" class="item-checkbox" data-url="${file.url}" data-name="${file.name}" ${checked}>
+                        ${thumbHtml}
                         <div class="output-info">
-                            <div class="output-name">${file.name}</div>
+                            <div class="output-name">第${idx+1}名 · ${file.name}</div>
                             <div class="output-meta">
                                 <span class="output-meta-item duration">
                                     ⏱️ ${file.duration_str || formatDurationSec(file.duration)}
@@ -2735,6 +2820,7 @@
                                 <span class="output-meta-item">
                                     💾 ${formatSize(file.size)}
                                 </span>
+                                <span class="excitement-stars">${starHtml}</span>
                             </div>
                         </div>
                         <a href="${file.url}" download="${file.name}" class="download-btn" title="单独下载这一段">
@@ -2764,6 +2850,7 @@
             const count = selectedUrls.size;
             selectedCount.textContent = `已圈粉 ${count} 段，准备下载`;
             downloadSelectedBtn.disabled = count === 0;
+            mergeSelectedBtn.disabled = count < 2;
 
             const visible = filteredOutputFiles.filter(f => selectedUrls.has(f.url)).length;
             const totalVisible = filteredOutputFiles.length;
@@ -2789,28 +2876,130 @@
         });
 
         applyFilterBtn.addEventListener('click', () => {
-            const min = viewMinDuration.value ? parseFloat(viewMinDuration.value) : 0;
-            filteredOutputFiles = currentOutputFiles.filter(f => {
-                const d = f.duration || 0;
-                return d >= min;
-            });
+            applySortAndFilter();
             if (filteredOutputFiles.length === 0 && (currentOutputFiles || []).length > 0) {
                 showWarnToast('这阈值设得太狠啦，精彩片段都被过滤光了🌚', 2500);
             } else {
-                showSuccessToast(`筛选出 ${filteredOutputFiles.length} 段「长回合」片段`);
+                const min = viewMinDuration.value ? parseFloat(viewMinDuration.value) : 0;
+                showSuccessToast(`筛选出 ${filteredOutputFiles.length} 段「${min > 0 ? '≥' + min + '秒' : '所有'}」片段`);
             }
             renderOutputs();
         });
 
         resetFilterBtn.addEventListener('click', () => {
             viewMinDuration.value = '';
-            filteredOutputFiles = [...currentOutputFiles];
+            applySortAndFilter();
             renderOutputs();
             showToast('已回满状态，所有片段回来啦 🎉');
         });
 
+        document.querySelectorAll('.sort-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const mode = btn.getAttribute('data-sort');
+                currentSortMode = mode;
+                document.querySelectorAll('.sort-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                applySortAndFilter();
+                renderOutputs();
+            });
+        });
+
+        function applySortAndFilter() {
+            const min = viewMinDuration.value ? parseFloat(viewMinDuration.value) : 0;
+            let files = [...currentOutputFiles];
+            if (min > 0) {
+                files = files.filter(f => (f.duration || 0) >= min);
+            }
+            if (currentSortMode === 'excitement') {
+                files.sort((a, b) => (b.excitement_score || 0) - (a.excitement_score || 0));
+            } else if (currentSortMode === 'duration') {
+                files.sort((a, b) => (b.duration || 0) - (a.duration || 0));
+            } else if (currentSortMode === 'original') {
+                const nameToIndex = {};
+                originalOutputOrder.forEach((f, i) => { nameToIndex[f.name] = i; });
+                files.sort((a, b) => (nameToIndex[a.name] ?? 999) - (nameToIndex[b.name] ?? 999));
+            }
+            filteredOutputFiles = files;
+        }
+
+        mergeSelectedBtn.addEventListener('click', async () => {
+            const toMerge = [...filteredOutputFiles].filter(f => selectedUrls.has(f.url));
+            if (toMerge.length === 0) {
+                showWarnToast('先勾选几段精彩片段再来合并哦～');
+                return;
+            }
+            if (toMerge.length < 2) {
+                showWarnToast('至少勾选2段才能合并呀，一段直接下载就行啦～');
+                return;
+            }
+            if (!currentUpload) {
+                showErrorToast('找不到当前任务信息');
+                return;
+            }
+            const uploadId = currentUpload.upload_id;
+            const originalText = mergeSelectedBtn.textContent;
+            mergeSelectedBtn.disabled = true;
+            mergeSelectedBtn.textContent = '🎬 合并中，请稍候…';
+            showToast(`正在为你合并 ${toMerge.length} 段精彩集锦，大约需要几十秒…`);
+            try {
+                const resp = await fetch(`/api/merge/${uploadId}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ files: toMerge.map(f => f.name) })
+                });
+                const data = await resp.json();
+                if (!resp.ok) {
+                    throw new Error(data.error || '合并失败');
+                }
+                mergedFiles.push({
+                    name: data.merged_file,
+                    url: data.url,
+                    size: data.size,
+                    duration: data.duration,
+                    duration_str: data.duration_str,
+                });
+                showSuccessToast(`🎉 合并完成！共 ${data.segment_count} 段，总时长 ${data.duration_str}，点击下方按钮下载`);
+                renderMergedResult(data);
+            } catch (e) {
+                showErrorToast('合并失败：' + e.message);
+            } finally {
+                mergeSelectedBtn.disabled = false;
+                mergeSelectedBtn.textContent = originalText;
+            }
+        });
+
+        function renderMergedResult(merged) {
+            let container = document.getElementById('mergedResultContainer');
+            if (!container) {
+                container = document.createElement('div');
+                container.id = 'mergedResultContainer';
+                container.style.marginTop = '16px';
+                container.style.padding = '16px';
+                container.style.background = 'linear-gradient(135deg, #e8f5e9 0%, #f1f8e9 100%)';
+                container.style.borderRadius = '12px';
+                container.style.border = '2px solid #a5d6a7';
+                actionBar.parentNode.insertBefore(container, outputList);
+            }
+            container.innerHTML = `
+                <div style="font-weight:700;color:#2e7d32;margin-bottom:8px;display:flex;align-items:center;gap:8px;">
+                    <span style="font-size:20px;">🎁</span> 你的专属精彩集锦已生成！
+                </div>
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+                    <div style="font-size:13px;color:#558b2f;">
+                        共 ${merged.segment_count} 段 · 总时长 ${merged.duration_str} · 大小 ${formatSize(merged.size)}
+                    </div>
+                    <a href="${merged.url}" download="${merged.merged_file}"
+                       style="display:inline-flex;align-items:center;gap:6px;padding:8px 20px;background:linear-gradient(135deg,#11998e,#38ef7d);color:white;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px;"
+                       onclick="this.style.transform='scale(0.95)';setTimeout(()=>this.style.transform='',150)">
+                        📥 下载完整集锦
+                    </a>
+                </div>
+            `;
+            if (typeof window.parseEmojiIfAble === 'function') window.parseEmojiIfAble(container);
+        }
+
         downloadSelectedBtn.addEventListener('click', () => {
-            const toDownload = currentOutputFiles.filter(f => selectedUrls.has(f.url));
+            const toDownload = filteredOutputFiles.filter(f => selectedUrls.has(f.url));
             if (toDownload.length === 0) {
                 showWarnToast('先圈粉（勾选）几段，不然一键抱不走呀～');
                 return;
@@ -3027,7 +3216,8 @@
             const files = task.output_files || [];
             if (files.length > 0) {
                 currentOutputFiles = files;
-                filteredOutputFiles = [...files];
+                originalOutputOrder = [...files];
+                applySortAndFilter();
                 selectedUrls.clear();
                 const totalSize = files.reduce((sum, f) => sum + (f.size || 0), 0);
                 renderStats({
@@ -3037,6 +3227,7 @@
                 renderOutputs();
                 resultCard.style.display = 'block';
                 filterBar.style.display = 'flex';
+                sortBar.style.display = 'flex';
                 actionBar.style.display = 'flex';
                 try { window.scrollTo({ top: document.getElementById('resultCard').offsetTop - 20, behavior: 'smooth' }); } catch (e) {}
                 showSuccessToast(`档案室取件成功！载入 ${files.length} 段前世今生（前世精华🎬）`);

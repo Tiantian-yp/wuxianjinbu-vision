@@ -796,6 +796,92 @@ def delete_upload(upload_id):
         return jsonify({'error': 'Not found'}), 404
 
 
+@app.route('/api/merge/<upload_id>', methods=['POST'])
+def merge_segments(upload_id):
+    wechat_name = _require_wechat_name()
+    if not wechat_name:
+        return jsonify({'error': '请先填写微信名'}), 400
+
+    task = get_task(upload_id)
+    if not task:
+        return jsonify({'error': '任务不存在'}), 404
+    if task.get('wechat_name') and task['wechat_name'] != wechat_name:
+        return jsonify({'error': '无权操作此任务'}), 403
+    if task.get('status') not in ('completed',):
+        return jsonify({'error': '任务尚未处理完成'}), 400
+
+    data = request.get_json(silent=True) or {}
+    file_names = data.get('files') or []
+    if not file_names:
+        return jsonify({'error': '请选择要合并的片段'}), 400
+
+    output_dir_abs = os.path.join(app.config['OUTPUT_FOLDER'], upload_id)
+    if not os.path.isdir(output_dir_abs):
+        return jsonify({'error': '输出目录不存在'}), 404
+
+    list_file_path = os.path.join(output_dir_abs, '_merge_list.txt')
+    merged_filename = f'merged_{upload_id}_{int(datetime.utcnow().timestamp())}.mp4'
+    merged_path = os.path.join(output_dir_abs, merged_filename)
+
+    valid_files = []
+    for fname in file_names:
+        fpath = os.path.join(output_dir_abs, fname)
+        if os.path.isfile(fpath) and fname.endswith('.mp4') and os.path.getsize(fpath) > 10240:
+            valid_files.append(fpath)
+
+    if not valid_files:
+        return jsonify({'error': '没有有效的片段可合并'}), 400
+
+    try:
+        with open(list_file_path, 'w', encoding='utf-8') as lf:
+            for fp in valid_files:
+                escaped = fp.replace("'", "'\\''")
+                lf.write(f"file '{escaped}'\n")
+
+        command = [
+            'ffmpeg', '-y', '-hide_banner', '-loglevel', 'error',
+            '-f', 'concat', '-safe', '0',
+            '-i', list_file_path,
+            '-c:v', 'libx264', '-preset', 'medium', '-crf', '23',
+            '-c:a', 'aac', '-b:a', '128k',
+            '-movflags', '+faststart',
+            merged_path
+        ]
+        import subprocess
+        result = subprocess.run(command, capture_output=True, text=True, timeout=300)
+        if result.returncode != 0:
+            logger.error('ffmpeg merge failed: %s', result.stderr)
+            return jsonify({'error': '合并失败: ' + result.stderr[-200:]}), 500
+
+        total_duration = 0
+        for fp in valid_files:
+            d = get_video_duration(fp)
+            if d:
+                total_duration += d
+        merged_size = os.path.getsize(merged_path)
+
+        try:
+            os.remove(list_file_path)
+        except Exception:
+            pass
+
+        logger.info(f'merged {len(valid_files)} segments for {upload_id}: {merged_filename}')
+        return jsonify({
+            'upload_id': upload_id,
+            'merged_file': merged_filename,
+            'url': f'/outputs/{upload_id}/{merged_filename}',
+            'size': merged_size,
+            'duration': total_duration,
+            'duration_str': format_duration(total_duration),
+            'segment_count': len(valid_files),
+        }), 200
+    except subprocess.TimeoutExpired:
+        return jsonify({'error': '合并超时，请减少片段数量重试'}), 504
+    except Exception as e:
+        logger.exception('merge failed: %s', e)
+        return jsonify({'error': f'合并失败: {str(e)}'}), 500
+
+
 @app.route('/api/comments', methods=['GET'])
 def get_comments():
     wechat_name = request.args.get('wechat_name') or None

@@ -233,19 +233,31 @@ class TaskQueue:
                         cut_success_count += 1
                     progress_cb('cut', done_count / len(cut_tasks), f'已导出 {done_count}/{len(cut_tasks)} 个片段')
 
-            progress_cb('merge', 0.0, '正在整理输出文件…')
+            progress_cb('merge', 0.0, '正在整理输出文件、生成封面…')
             if os.path.exists(output_dir_abs):
-                for f in sorted(os.listdir(output_dir_abs)):
-                    if f.endswith('.mp4'):
-                        file_path = os.path.join(output_dir_abs, f)
-                        duration = self._get_video_duration(file_path)
-                        output_files.append({
-                            'name': f,
-                            'url': f'/outputs/{upload_id}/{f}',
-                            'size': os.path.getsize(file_path),
-                            'duration': duration,
-                            'duration_str': self._format_duration(duration)
-                        })
+                mp4_files = sorted([f for f in os.listdir(output_dir_abs) if f.endswith('.mp4')])
+                total_outputs = len(mp4_files)
+                for idx, f in enumerate(mp4_files):
+                    file_path = os.path.join(output_dir_abs, f)
+                    duration = self._get_video_duration(file_path)
+                    thumb_name = os.path.splitext(f)[0] + '.jpg'
+                    thumb_path = os.path.join(output_dir_abs, thumb_name)
+                    self._generate_thumbnail(file_path, thumb_path, duration)
+                    excitement_score = self._calculate_excitement_score(duration, idx, total_outputs)
+                    output_files.append({
+                        'name': f,
+                        'url': f'/outputs/{upload_id}/{f}',
+                        'thumbnail_url': f'/outputs/{upload_id}/{thumb_name}' if os.path.exists(thumb_path) else None,
+                        'size': os.path.getsize(file_path),
+                        'duration': duration,
+                        'duration_str': self._format_duration(duration),
+                        'excitement_score': excitement_score,
+                        'excitement_stars': min(5, max(1, round(excitement_score * 5))),
+                    })
+                    if idx % 3 == 0:
+                        progress_cb('merge', min(0.9, (idx + 1) / total_outputs * 0.8), f'正在生成封面 {idx+1}/{total_outputs}…')
+
+                output_files.sort(key=lambda x: x.get('excitement_score', 0), reverse=True)
 
             import sys as _sys
             if PROJECT_ROOT not in _sys.path:
@@ -330,6 +342,42 @@ class TaskQueue:
         if mins:
             return f"{mins} 分钟"
         return f"{secs} 秒"
+
+    def _generate_thumbnail(self, video_path: str, thumb_path: str, duration: float = None):
+        try:
+            if duration and duration > 0:
+                seek_time = duration / 2.0
+            else:
+                seek_time = 1.0
+            command = [
+                'ffmpeg', '-y', '-hide_banner', '-loglevel', 'error',
+                '-ss', f'{seek_time:.2f}',
+                '-i', video_path,
+                '-vframes', '1',
+                '-vf', 'scale=320:-1',
+                '-q:v', '5',
+                thumb_path
+            ]
+            subprocess.run(command, capture_output=True, check=True, timeout=15)
+            return True
+        except Exception as e:
+            logger.warning('Failed to generate thumbnail for %s: %s', os.path.basename(video_path), e)
+            return False
+
+    def _calculate_excitement_score(self, duration: float, segment_index: int, total_segments: int) -> float:
+        score = 0.5
+        if duration and duration >= 6:
+            score += 0.15
+        if duration and duration >= 10:
+            score += 0.15
+        if duration and duration >= 15:
+            score += 0.10
+        if duration and duration >= 20:
+            score += 0.05
+        if total_segments > 1:
+            position_ratio = 1.0 - abs((segment_index / max(1, total_segments - 1)) - 0.5) * 2.0
+            score += position_ratio * 0.05
+        return min(1.0, max(0.3, score))
 
     def _estimate_plan(self, source_duration_seconds, width=None, height=None,
                        encoder_speed_ratio=1.0, worker_count=None,
