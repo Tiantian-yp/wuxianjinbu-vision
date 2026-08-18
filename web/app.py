@@ -15,7 +15,7 @@ PROJECT_ROOT = os.path.dirname(BASE_DIR)
 
 UPLOAD_DIR = os.getenv('UPLOAD_DIR', os.path.join(BASE_DIR, 'uploads'))
 OUTPUT_DIR = os.getenv('OUTPUT_DIR', os.path.join(BASE_DIR, 'outputs'))
-MAX_CONTENT_MB = int(os.getenv('MAX_CONTENT_MB', '500'))
+MAX_CONTENT_MB = int(os.getenv('MAX_CONTENT_MB', '600'))
 HOST = os.getenv('HOST', '0.0.0.0')
 PORT = int(os.getenv('PORT', '5000'))
 DEBUG = os.getenv('FLASK_DEBUG', 'false').lower() in ('1', 'true', 'yes')
@@ -29,8 +29,8 @@ app.config['OUTPUT_FOLDER'] = OUTPUT_DIR
 app.config['MAX_CONTENT_LENGTH'] = MAX_CONTENT_MB * 1024 * 1024
 
 ALLOWED_EXTENSIONS = {'mp4', 'mov', 'qt', 'm4v', '3gp', 'avi', 'mkv', 'flv', 'wmv', 'webm', 'mts', 'm2ts'}
-RECOMMENDED_MAX_DURATION_MINUTES = 8
-HARD_MAX_DURATION_SECONDS = 15 * 60
+RECOMMENDED_MAX_DURATION_MINUTES = 10
+HARD_MAX_DURATION_SECONDS = 30 * 60
 BUDGET_SECONDS_FOR_PROCESS = 180
 BASE_DETECT_RATIO = 0.08
 BASE_CUT_RATIO = 0.22

@@ -3,7 +3,7 @@ server {
     server_name {{DOMAIN_OR_IP}};
 
     # 客户端上传视频大小限制（与 Flask 一致）
-    client_max_body_size 500M;
+    client_max_body_size 600M;
 
     # 大文件超时（视频处理是同步阻塞，给足时间）
     proxy_connect_timeout 60s;

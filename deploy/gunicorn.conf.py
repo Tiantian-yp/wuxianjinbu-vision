@@ -34,7 +34,7 @@ group = None
 raw_env = [
     f'FLASK_DEBUG=false',
     f'LOG_LEVEL=INFO',
-    f'MAX_CONTENT_MB=500',
+    f'MAX_CONTENT_MB=600',
 ]
 
 os.makedirs(os.path.join(_BASE_DIR, 'logs'), exist_ok=True)

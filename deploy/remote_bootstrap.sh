@@ -169,7 +169,7 @@ else
     RENDERED="server {
     listen 80;
     server_name ${DOMAIN_OR_IP};
-    client_max_body_size 500M;
+    client_max_body_size 600M;
     proxy_connect_timeout 60s;
     proxy_send_timeout 900s;
     proxy_read_timeout 900s;

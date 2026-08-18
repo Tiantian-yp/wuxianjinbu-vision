@@ -1450,8 +1450,8 @@
             <div class="upload-area" id="uploadArea">
                 <div class="upload-icon">🎯</div>
                 <div class="upload-text">把比赛录像甩这儿，球搭子帮你切名场面</div>
-                <div class="upload-hint">建议上传不超过 <strong id="recommendedMaxMinutes">8</strong> 分钟的视频，保证整体处理在 3 分钟内出结果 🏸</div>
-                <div class="upload-hint" style="margin-top:6px;color:#8f7cb7;">支持 MP4/MOV/QT/M4V/3GP/AVI/MKV…单条最大 500MB，手机 WiFi 上传更稳～</div>
+                <div class="upload-hint">最大支持 <strong>30</strong> 分钟、<strong>600MB</strong>，10 分钟内的视频效果更快更好，3 分钟左右出结果 🏸</div>
+                <div class="upload-hint" style="margin-top:6px;color:#8f7cb7;">支持 MP4/MOV/QT/M4V/3GP/AVI/MKV/WEBM…手机 WiFi 上传更稳～</div>
             </div>
             <input type="file" id="fileInput" accept="video/*">
             
@@ -1482,7 +1482,7 @@
                         <span class="form-label-hint">（可选，先练球再出集锦）</span>
                     </label>
                     <div class="input-row">
-                        <input type="number" id="minDurationInput" min="0" max="600" step="1" value="5" placeholder="例如 5">
+                        <input type="number" id="minDurationInput" min="0" max="600" step="1" value="6" placeholder="例如 6">
                         <span class="unit">秒以上的片段才入集锦（低质量网前互搓也能省则省 🌚）</span>
                     </div>
                     <div style="font-size:12px;color:#999;margin-top:6px;">
@@ -1808,10 +1808,6 @@
 
         function applyRuntimeConfig(cfg) {
             runtimeConfig = cfg || {};
-            if (runtimeConfig.recommended_max_duration_minutes) {
-                const el = document.getElementById('recommendedMaxMinutes');
-                if (el) el.textContent = runtimeConfig.recommended_max_duration_minutes;
-            }
         }
 
         function loadRuntimeConfig() {
@@ -1871,8 +1867,8 @@
         function renderDurationAndEstimate(uploadPayload, estimate) {
             const data = uploadPayload || currentUpload || {};
             const est = estimate || data.estimate || (data.process_estimate ? data.process_estimate : null);
-            const minutesCap = (runtimeConfig && runtimeConfig.recommended_max_duration_minutes) || 8;
-            const hardMinutesCap = (runtimeConfig && Math.round(runtimeConfig.hard_max_duration_seconds / 60)) || 15;
+            const minutesCap = (runtimeConfig && runtimeConfig.recommended_max_duration_minutes) || 10;
+            const hardMinutesCap = (runtimeConfig && Math.round(runtimeConfig.hard_max_duration_seconds / 60)) || 30;
             const durationSec = Number(data.duration_seconds) || (data.processing_estimate ? Number(data.processing_estimate.source_duration_seconds) : 0) || 0;
             const warning = data.warning || (est && est.recommendation_message) || '';
             const exceedsHard = est ? !!est.exceeds_hard_limit : false;
@@ -2335,8 +2331,14 @@
                 showWarnToast('这颗球出界了～请上传 MP4/MOV/QT/AVI 等视频文件');
                 return;
             }
+            const maxSizeMb = (runtimeConfig && runtimeConfig.max_upload_mb) || 600;
+            if (file.size > maxSizeMb * 1024 * 1024) {
+                showWarnToast(`视频文件太大了～单条最大 ${maxSizeMb}MB，当前 ${(file.size / 1024 / 1024).toFixed(1)}MB，请压缩或裁剪后再传`);
+                return;
+            }
             if (!requireWechatName('上传视频')) return;
-            const minutesCap = (runtimeConfig && runtimeConfig.recommended_max_duration_minutes) || 8;
+            const recommendedMinutes = (runtimeConfig && runtimeConfig.recommended_max_duration_minutes) || 10;
+            const hardMaxSeconds = (runtimeConfig && runtimeConfig.hard_max_duration_seconds) || 30 * 60;
             const probeVideo = document.createElement('video');
             probeVideo.preload = 'metadata';
             const objectUrl = URL.createObjectURL(file);
@@ -2356,13 +2358,17 @@
             });
             durationPromise.then((preSeconds) => {
                 if (preSeconds > 0) {
+                    if (preSeconds > hardMaxSeconds) {
+                        showWarnToast(`视频时长 ${Math.round(preSeconds / 60 * 10) / 10} 分钟，超过 ${Math.round(hardMaxSeconds / 60)} 分钟硬上限，请裁剪后再上传`);
+                        return;
+                    }
                     const preMinutes = Math.ceil(preSeconds / 60);
-                    if (preMinutes > minutesCap * 1.4) {
+                    if (preMinutes > recommendedMinutes) {
                         const ok = window.confirm(
-                            `这盘视频大概 ${Math.round(preSeconds / 60 * 10) / 10} 分钟。\n建议不超过 ${minutesCap} 分钟，可以保证整体处理在 3 分钟内出结果。\n是否仍然继续上传？`
+                            `这盘视频大概 ${Math.round(preSeconds / 60 * 10) / 10} 分钟。\n${recommendedMinutes} 分钟以内的视频处理更快更稳（约 3 分钟出结果），超过后处理时间会变长。\n是否仍然继续上传？`
                         );
                         if (!ok) {
-                            showWarnToast('先暂停发球～可以在手机相册里裁到 ' + minutesCap + ' 分钟以内再来哦');
+                            showWarnToast('先暂停发球～可以在手机相册里裁到 ' + recommendedMinutes + ' 分钟以内再来哦');
                             return;
                         }
                     }
