@@ -2529,7 +2529,82 @@
 
             processBtn.disabled = true;
             processSpinner.style.display = 'inline-block';
-            processBtn.innerHTML = '<span class="loading-spinner" id="processSpinner"></span>主裁判正在回放鹰眼…进度拉满中 ⏳';
+            progressContainer.style.display = 'block';
+            progressFill.style.width = '1%';
+            progressText.textContent = '🎯 任务已提交，正在排队处理…';
+            videoPreview.style.display = 'none';
+
+            let eventSource = null;
+            let closed = false;
+
+            function cleanupSSE() {
+                if (eventSource) {
+                    try { eventSource.close(); } catch (e) {}
+                    eventSource = null;
+                }
+            }
+
+            function onTaskUpdate(data) {
+                if (!data) return;
+                const status = data.status || '';
+                const progress = Math.max(0, Math.min(100, Math.round((Number(data.progress) || 0) * 100)));
+                const msg = data.progress_message || '处理中…';
+                progressFill.style.width = progress + '%';
+                progressText.textContent = `${msg} (${progress}%)`;
+
+                if (status === 'completed') {
+                    if (closed) return;
+                    closed = true;
+                    cleanupSSE();
+                    const result = data.result || {};
+                    currentOutputFiles = result.output_files || [];
+                    filteredOutputFiles = [...currentOutputFiles];
+                    selectedUrls.clear();
+                    progressFill.style.width = '100%';
+                    progressText.textContent = '🎉 处理完成！正在加载结果…';
+                    showSuccessToast(`名场面产出完毕！共切出 ${currentOutputFiles.length} 段精华，今晚 B 站素材有了`);
+                    renderStats({ success_count: currentOutputFiles.length });
+                    renderOutputs();
+                    resultCard.style.display = 'block';
+                    progressContainer.style.display = 'none';
+                    videoPreview.style.display = 'block';
+                    if (currentOutputFiles.length > 0) {
+                        filterBar.style.display = 'flex';
+                        actionBar.style.display = 'flex';
+                    }
+                    processBtn.disabled = false;
+                    processSpinner.style.display = 'none';
+                    processBtn.textContent = '再来一球（重切）';
+                    loadHistory();
+                } else if (status === 'failed') {
+                    if (closed) return;
+                    closed = true;
+                    cleanupSSE();
+                    progressContainer.style.display = 'none';
+                    videoPreview.style.display = 'block';
+                    showErrorToast('处理失败：' + (data.error || '未知错误'));
+                    processBtn.disabled = false;
+                    processSpinner.style.display = 'none';
+                    processBtn.textContent = '再来一球（重切）';
+                }
+            }
+
+            function pollTaskStatus() {
+                if (closed) return;
+                fetch(`/api/task/${currentUpload.upload_id}/status`, {
+                    headers: { ...getWechatHeader() }
+                })
+                .then(r => r.json().catch(() => null))
+                .then(data => {
+                    if (data) onTaskUpdate(data);
+                    if (!closed && data && data.status !== 'completed' && data.status !== 'failed') {
+                        setTimeout(pollTaskStatus, 1500);
+                    }
+                })
+                .catch(() => {
+                    if (!closed) setTimeout(pollTaskStatus, 2000);
+                });
+            }
 
             fetch('/api/process', {
                 method: 'POST',
@@ -2548,31 +2623,55 @@
             })
             .then(response => parseJsonOrFriendly(response))
             .then(data => {
-                if (data && data.status === 'completed') {
-                    currentOutputFiles = data.output_files || [];
-                    filteredOutputFiles = [...currentOutputFiles];
-                    selectedUrls.clear();
-                    
-                    showSuccessToast(`名场面产出完毕！共切出 **${data.success_count || 0} 段精华**，今晚 B 站素材有了`);
-                    renderStats(data);
-                    renderOutputs();
-                    resultCard.style.display = 'block';
-                    if (currentOutputFiles.length > 0) {
-                        filterBar.style.display = 'flex';
-                        actionBar.style.display = 'flex';
+                if (data && data.error) {
+                    showErrorToast('提交失败：' + data.error);
+                    cleanupSSE();
+                    processBtn.disabled = false;
+                    processSpinner.style.display = 'none';
+                    processBtn.textContent = '主裁判吹哨，开切！';
+                    progressContainer.style.display = 'none';
+                    videoPreview.style.display = 'block';
+                    return;
+                }
+                if (data && data.status === 'completed' && data.output_files) {
+                    onTaskUpdate({ status: 'completed', progress: 1, result: data });
+                    return;
+                }
+                progressFill.style.width = '2%';
+                progressText.textContent = data.progress_message || '🏸 处理已开始…';
+
+                if (!!window.EventSource) {
+                    try {
+                        const es = new EventSource(`/api/task/${currentUpload.upload_id}/events`);
+                        eventSource = es;
+                        es.onmessage = (e) => {
+                            try {
+                                const d = JSON.parse(e.data);
+                                onTaskUpdate(d);
+                            } catch (err) {
+                                console.warn('SSE parse error', err);
+                            }
+                        };
+                        es.onerror = () => {
+                            cleanupSSE();
+                            if (!closed) pollTaskStatus();
+                        };
+                    } catch (e) {
+                        cleanupSSE();
+                        pollTaskStatus();
                     }
-                    loadHistory();
                 } else {
-                    showErrorToast('哎呀这颗球打框了～错误：' + (data && data.error ? data.error : '主裁判摇了摇头'));
+                    pollTaskStatus();
                 }
             })
             .catch(err => {
-                showErrorToast('处理出错：' + (err && err.message ? err.message : '网络异常'));
-            })
-            .finally(() => {
+                showErrorToast('提交失败：' + (err && err.message ? err.message : '网络异常'));
+                cleanupSSE();
                 processBtn.disabled = false;
                 processSpinner.style.display = 'none';
-                processBtn.textContent = '再来一球（重切）';
+                processBtn.textContent = '主裁判吹哨，开切！';
+                progressContainer.style.display = 'none';
+                videoPreview.style.display = 'block';
             });
         });
 

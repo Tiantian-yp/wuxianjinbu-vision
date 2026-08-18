@@ -55,6 +55,7 @@ from web.models import (
     init_db,
     create_task,
     update_task_completed,
+    update_task_progress,
     list_tasks,
     list_task_names,
     get_task,
@@ -62,6 +63,8 @@ from web.models import (
     add_comment,
     list_comments,
 )
+from web.task_queue import task_queue
+import json as _json
 
 init_db()
 
@@ -538,7 +541,7 @@ def upload_video():
 
 @app.route('/api/process', methods=['POST'])
 def process_video():
-    data = request.get_json() or {}
+    data = request.get_json(silent=True) or {}
     upload_id = data.get('upload_id')
     safe_filename = data.get('safe_filename')
     min_duration = data.get('min_duration')
@@ -561,11 +564,22 @@ def process_video():
     if task and task.get('wechat_name') and task['wechat_name'] != wechat_name:
         return jsonify({'error': '这个视频不属于你哦，处理权限不足 🙅'}), 403
 
+    if task and task.get('status') in ('processing', 'uploaded'):
+        existing_status = task.get('status')
+        if existing_status == 'processing':
+            return jsonify({
+                'upload_id': upload_id,
+                'status': 'processing',
+                'message': '视频正在处理中，请稍候…',
+                'progress': float(task.get('progress') or 0),
+                'progress_message': task.get('progress_message') or '处理中…',
+            }), 202
+
     output_dir_abs = os.path.join(app.config['OUTPUT_FOLDER'], upload_id)
     os.makedirs(output_dir_abs, exist_ok=True)
 
-    upload_url = f'/uploads/{safe_filename}'
     output_dir_rel = f'/outputs/{upload_id}'
+    upload_url = f'/uploads/{safe_filename}'
 
     if task is None:
         create_task({
@@ -579,108 +593,124 @@ def process_video():
             'upload_size': os.path.getsize(input_path) if os.path.exists(input_path) else None,
             'output_dir': output_dir_rel,
             'min_duration': min_duration,
-            'status': 'processing',
+            'status': 'queued',
             'output_count': 0,
         })
 
-    try:
-        import sys
-        if PROJECT_ROOT not in sys.path:
-            sys.path.insert(0, PROJECT_ROOT)
+    submitted = task_queue.submit(
+        upload_id=upload_id,
+        input_path=input_path,
+        output_dir_abs=output_dir_abs,
+        min_duration=min_duration,
+        wechat_name=wechat_name,
+        user_name=user_name,
+        task_name=task_name,
+    )
 
-        from src.segmenter import VideoSegmenter
-        from src.video_cutter import VideoCutter
+    return jsonify({
+        'upload_id': upload_id,
+        'status': 'processing',
+        'message': '视频已加入处理队列，开始后台处理…',
+        'progress': 0.01,
+        'progress_message': '正在准备处理视频…',
+    }), 202
 
-        segmenter = VideoSegmenter(
-            min_segment_duration=3.0,
-            max_segment_duration=60.0,
-            padding_before=0.5,
-            padding_after=0.5
-        )
 
-        logger.info(f'[{upload_id}] start segmenting video: {input_path} wechat_name={wechat_name}')
-        segments = segmenter.process_video(input_path, use_tracknet=False)
-        stats = segmenter.get_segment_stats()
-        logger.info(f'[{upload_id}] segmented: {stats}')
-
-        video_cutter = VideoCutter(
-            output_format='mp4',
-            codec=None,
-            quality=23
-        )
-        encoder_speed_ratio = float(getattr(video_cutter, 'encoder_speed_ratio', 1.0))
-        encoder_label = getattr(video_cutter, 'encoder_name_label', None) or 'libx264 (CPU)'
-
-        cut_min_duration = None
-        if min_duration is not None:
-            try:
-                cut_min_duration = float(min_duration)
-            except (ValueError, TypeError):
-                pass
-
-        estimate_payload = estimate_process_plan(
-            segmenter.video_duration,
-            width=getattr(segmenter, 'video_width', None),
-            height=getattr(segmenter, 'video_height', None),
-            encoder_speed_ratio=encoder_speed_ratio,
-            min_duration_filter=cut_min_duration,
-        )
-        process_hint = (f"预估 {format_minutes_str(estimate_payload['low_seconds'])} ～ "
-                        f"{format_minutes_str(estimate_payload['high_seconds'])}，编码器：{encoder_label}")
-        logger.info(f'[{upload_id}] cutting: {process_hint}')
-
-        success_count = video_cutter.cut_segments_with_filter(
-            input_path=input_path,
-            segments=segmenter.segments,
-            output_dir=output_dir_abs,
-            min_duration=cut_min_duration,
-            prefix='segment'
-        )
-        logger.info(f'[{upload_id}] cut segments: success={success_count}')
-
-        output_files = []
-        if os.path.exists(output_dir_abs):
-            for f in sorted(os.listdir(output_dir_abs)):
-                if f.endswith('.mp4'):
-                    file_path = os.path.join(output_dir_abs, f)
-                    duration = get_video_duration(file_path)
-                    output_files.append({
-                        'name': f,
-                        'url': f'/outputs/{upload_id}/{f}',
-                        'size': os.path.getsize(file_path),
-                        'duration': duration,
-                        'duration_str': format_duration(duration)
-                    })
-
-        update_task_completed(upload_id, 'completed', len(output_files))
-
-        return jsonify({
-            'upload_id': upload_id,
-            'status': 'completed',
-            'total_segments': stats['total_segments'],
-            'success_count': success_count,
-            'output_files': output_files,
-            'output_dir': output_dir_rel,
-            'wechat_name': wechat_name,
-            'user_name': user_name,
-            'task_name': task_name,
-            'processing_estimate': {
-                **estimate_payload,
-                'best_effort_human': format_minutes_str(estimate_payload['best_effort_seconds']),
-                'low_human': format_minutes_str(estimate_payload['low_seconds']),
-                'high_human': format_minutes_str(estimate_payload['high_seconds']),
-                'budget_human': format_minutes_str(BUDGET_SECONDS_FOR_PROCESS),
-                'encoder_label': encoder_label,
-            },
-        }), 200
-
-    except Exception as e:
-        logger.exception(f'[{upload_id}] process failed: {e}')
+def _serialize_task(t):
+    result = None
+    if t.get('result_data'):
         try:
-            update_task_completed(upload_id, 'failed', 0)
+            result = _json.loads(t['result_data'])
         except Exception:
-            pass
-        return jsonify({'error': str(e)}), 500
+            result = None
+    return {
+        'upload_id': t['upload_id'],
+        'wechat_name': t.get('wechat_name'),
+        'user_name': t.get('user_name'),
+        'task_name': t.get('task_name'),
+        'original_filename': t.get('original_filename'),
+        'safe_filename': t.get('safe_filename'),
+        'upload_url': t.get('upload_url'),
+        'upload_size': t.get('upload_size'),
+        'output_dir': t.get('output_dir'),
+        'output_count': t.get('output_count') or 0,
+        'total_segments': t.get('total_segments') or 0,
+        'min_duration': t.get('min_duration'),
+        'status': t.get('status'),
+        'progress': float(t.get('progress') or 0.0),
+        'progress_message': t.get('progress_message') or '',
+        'error': t.get('error'),
+        'created_at': t.get('created_at'),
+        'started_at': t.get('started_at'),
+        'completed_at': t.get('completed_at'),
+        'result': result,
+    }
+
+
+@app.route('/api/task/<upload_id>/status', methods=['GET'])
+def task_status(upload_id):
+    wechat_name = _require_wechat_name()
+    task = get_task(upload_id)
+    if not task:
+        return jsonify({'error': 'Task not found'}), 404
+    if task.get('wechat_name') and wechat_name and task['wechat_name'] != wechat_name:
+        return jsonify({'error': '无权查看此任务'}), 403
+
+    output_dir_abs = os.path.join(app.config['OUTPUT_FOLDER'], upload_id)
+    output_files = []
+    if os.path.isdir(output_dir_abs):
+        for f in sorted(os.listdir(output_dir_abs)):
+            fpath = os.path.join(output_dir_abs, f)
+            if os.path.isfile(fpath) and f.endswith('.mp4'):
+                duration = get_video_duration(fpath)
+                output_files.append({
+                    'name': f,
+                    'url': f"/outputs/{upload_id}/{f}",
+                    'size': os.path.getsize(fpath),
+                    'duration': duration,
+                    'duration_str': format_duration(duration),
+                })
+
+    resp = _serialize_task(task)
+    resp['output_files'] = output_files
+    return jsonify(resp), 200
+
+
+@app.route('/api/task/<upload_id>/events')
+def task_events(upload_id):
+    def generate():
+        task = get_task(upload_id)
+        if task:
+            initial_data = _serialize_task(task)
+            yield f"data: {_json.dumps(initial_data, ensure_ascii=False)}\n\n"
+            if task.get('status') in ('completed', 'failed', 'expired'):
+                yield "event: done\ndata: {}\n\n"
+                return
+
+        q = task_queue.subscribe(upload_id)
+        try:
+            import time
+            while True:
+                try:
+                    event = q.get(timeout=15)
+                    yield event
+                    if '"status": "completed"' in event or '"status": "failed"' in event:
+                        break
+                except Exception:
+                    task = get_task(upload_id)
+                    if task and task.get('status') in ('completed', 'failed', 'expired'):
+                        final_data = _serialize_task(task)
+                        yield f"data: {_json.dumps(final_data, ensure_ascii=False)}\n\n"
+                        break
+                    yield ": keepalive\n\n"
+        finally:
+            task_queue.unsubscribe(upload_id, q)
+
+    return app.response_class(generate(), mimetype='text/event-stream', headers={
+        'Cache-Control': 'no-cache',
+        'X-Accel-Buffering': 'no',
+        'Connection': 'keep-alive',
+    })
 
 
 @app.route('/api/list', methods=['GET'])
@@ -705,23 +735,10 @@ def list_files():
                         'duration': duration,
                         'duration_str': format_duration(duration),
                     })
-        tasks.append({
-            'upload_id': t['upload_id'],
-            'wechat_name': t.get('wechat_name'),
-            'user_name': t.get('user_name'),
-            'task_name': t.get('task_name'),
-            'original_filename': t.get('original_filename'),
-            'safe_filename': t.get('safe_filename'),
-            'upload_url': t.get('upload_url'),
-            'upload_size': t.get('upload_size'),
-            'output_dir': t.get('output_dir'),
-            'output_files': output_files,
-            'output_count': len(output_files),
-            'min_duration': t.get('min_duration'),
-            'status': t.get('status'),
-            'created_at': t.get('created_at'),
-            'completed_at': t.get('completed_at'),
-        })
+        task_data = _serialize_task(t)
+        task_data['output_files'] = output_files
+        task_data['output_count'] = len(output_files)
+        tasks.append(task_data)
 
     return jsonify({
         'tasks': tasks,

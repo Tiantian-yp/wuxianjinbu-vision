@@ -41,6 +41,8 @@ class VideoSegmenter:
         self.video_fps = 30.0
         self.video_duration = 0.0
         self.total_frames = 0
+        self.video_width = None
+        self.video_height = None
 
     def process_video(self, video_path: str, output_dir: str = None,
                       use_tracknet: bool = False,
@@ -80,6 +82,8 @@ class VideoSegmenter:
         cap = cv2.VideoCapture(video_path)
         self.video_fps = float(cap.get(cv2.CAP_PROP_FPS) or 30.0)
         self.total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT) or 0)
+        self.video_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH) or 0) or None
+        self.video_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT) or 0) or None
         self.video_duration = self.total_frames / max(1.0, self.video_fps)
         cap.release()
         logger.info("video info: total_frames=%d, fps=%.2f, detections=%d",
@@ -96,6 +100,8 @@ class VideoSegmenter:
             raise RuntimeError(f"无法打开视频文件: {video_path}")
         self.video_fps = float(cap.get(cv2.CAP_PROP_FPS) or 30.0)
         self.total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT) or 0)
+        self.video_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH) or 0) or None
+        self.video_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT) or 0) or None
         self.video_duration = self.total_frames / max(1.0, self.video_fps)
         shuttle_tracker = ShuttlecockTracker(detector_type='simple', fps=self.video_fps)
         frame_idx = 0

@@ -50,6 +50,12 @@ def init_db():
             """
         )
         _ensure_column(conn, 'tasks', 'wechat_name', 'TEXT')
+        _ensure_column(conn, 'tasks', 'progress', 'REAL DEFAULT 0.0')
+        _ensure_column(conn, 'tasks', 'progress_message', 'TEXT DEFAULT \'\'')
+        _ensure_column(conn, 'tasks', 'error', 'TEXT')
+        _ensure_column(conn, 'tasks', 'started_at', 'TEXT')
+        _ensure_column(conn, 'tasks', 'total_segments', 'INTEGER DEFAULT 0')
+        _ensure_column(conn, 'tasks', 'result_data', 'TEXT')
         conn.execute('CREATE INDEX IF NOT EXISTS idx_tasks_created ON tasks(created_at DESC)')
         conn.execute('CREATE INDEX IF NOT EXISTS idx_tasks_user_name ON tasks(user_name)')
         conn.execute('CREATE INDEX IF NOT EXISTS idx_tasks_task_name ON tasks(task_name)')
@@ -113,13 +119,49 @@ def delete_task(upload_id):
         conn.execute('DELETE FROM tasks WHERE upload_id = ?', (upload_id,))
 
 
-def update_task_completed(upload_id, status, output_count, completed_at=None):
+def update_task_completed(upload_id, status, output_count, completed_at=None, result_data=None, error=None):
     if completed_at is None:
         completed_at = datetime.utcnow().isoformat() + 'Z'
     with get_conn() as conn:
+        if result_data is not None:
+            import json
+            conn.execute(
+                'UPDATE tasks SET status=?, output_count=?, completed_at=?, result_data=?, error=? WHERE upload_id=?',
+                (status, output_count, completed_at, json.dumps(result_data, ensure_ascii=False), error, upload_id),
+            )
+        else:
+            conn.execute(
+                'UPDATE tasks SET status=?, output_count=?, completed_at=?, error=? WHERE upload_id=?',
+                (status, output_count, completed_at, error, upload_id),
+            )
+
+
+def update_task_progress(upload_id, progress, message='', status=None, total_segments=None):
+    with get_conn() as conn:
+        updates = ['progress=?', 'progress_message=?']
+        params = [float(progress), message]
+        if status is not None:
+            updates.append('status=?')
+            params.append(status)
+        if status == 'processing':
+            updates.append('started_at=COALESCE(started_at, ?)')
+            params.append(datetime.utcnow().isoformat() + 'Z')
+        if total_segments is not None:
+            updates.append('total_segments=?')
+            params.append(int(total_segments))
+        params.append(upload_id)
         conn.execute(
-            'UPDATE tasks SET status=?, output_count=?, completed_at=? WHERE upload_id=?',
-            (status, output_count, completed_at, upload_id),
+            f'UPDATE tasks SET {", ".join(updates)} WHERE upload_id=?',
+            params,
+        )
+
+
+def update_task_started(upload_id):
+    started_at = datetime.utcnow().isoformat() + 'Z'
+    with get_conn() as conn:
+        conn.execute(
+            'UPDATE tasks SET status=?, started_at=?, progress=?, progress_message=? WHERE upload_id=?',
+            ('processing', started_at, 0.01, '正在准备处理视频…', upload_id),
         )
 
 
