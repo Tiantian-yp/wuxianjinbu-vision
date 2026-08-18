@@ -28,7 +28,7 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_DIR
 app.config['OUTPUT_FOLDER'] = OUTPUT_DIR
 app.config['MAX_CONTENT_LENGTH'] = MAX_CONTENT_MB * 1024 * 1024
 
-ALLOWED_EXTENSIONS = {'mp4', 'mov', 'qt', 'm4v', '3gp', 'avi', 'mkv', 'flv', 'wmv'}
+ALLOWED_EXTENSIONS = {'mp4', 'mov', 'qt', 'm4v', '3gp', 'avi', 'mkv', 'flv', 'wmv', 'webm', 'mts', 'm2ts'}
 RECOMMENDED_MAX_DURATION_MINUTES = 8
 HARD_MAX_DURATION_SECONDS = 15 * 60
 BUDGET_SECONDS_FOR_PROCESS = 180

@@ -2326,7 +2326,12 @@
         }
 
         function handleFile(file) {
-            if (!file.type.startsWith('video/')) {
+            const allowedExtensions = ['mp4', 'mov', 'qt', 'm4v', '3gp', 'avi', 'mkv', 'flv', 'wmv', 'webm', 'mts', 'm2ts'];
+            const fileExtension = file.name.split('.').pop().toLowerCase();
+            const isValidByType = file.type.startsWith('video/');
+            const isValidByExt = allowedExtensions.includes(fileExtension);
+            
+            if (!isValidByType && !isValidByExt) {
                 showWarnToast('这颗球出界了～请上传 MP4/MOV/QT/AVI 等视频文件');
                 return;
             }

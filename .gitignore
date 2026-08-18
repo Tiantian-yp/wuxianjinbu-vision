@@ -47,3 +47,4 @@ models/TrackNetV3/TrackNetV3_ckpts.zip
 *.avi
 *.mkv
 *.json
+web/badminton.db.bak_20260811_210014
