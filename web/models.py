@@ -76,6 +76,13 @@ def init_db():
         conn.execute('CREATE INDEX IF NOT EXISTS idx_comments_created ON comments(created_at DESC)')
         conn.execute('CREATE INDEX IF NOT EXISTS idx_comments_wechat_name ON comments(wechat_name)')
 
+        conn.execute(
+            "UPDATE tasks SET task_name = wechat_name WHERE (task_name IS NULL OR task_name = '') AND wechat_name IS NOT NULL AND wechat_name <> ''"
+        )
+        conn.execute(
+            "UPDATE tasks SET user_name = wechat_name WHERE (user_name IS NULL OR user_name = '') AND wechat_name IS NOT NULL AND wechat_name <> ''"
+        )
+
 
 def create_task(payload):
     with get_conn() as conn:
@@ -156,12 +163,21 @@ def update_task_progress(upload_id, progress, message='', status=None, total_seg
         )
 
 
-def update_task_started(upload_id):
+def update_task_started(upload_id, task_name=None, user_name=None):
     started_at = datetime.utcnow().isoformat() + 'Z'
     with get_conn() as conn:
+        updates = ['status=?', 'started_at=?', 'progress=?', 'progress_message=?']
+        params = ['processing', started_at, 0.01, '正在准备处理视频…']
+        if task_name is not None:
+            updates.append('task_name=?')
+            params.append(task_name)
+        if user_name is not None:
+            updates.append('user_name=?')
+            params.append(user_name)
+        params.append(upload_id)
         conn.execute(
-            'UPDATE tasks SET status=?, started_at=?, progress=?, progress_message=? WHERE upload_id=?',
-            ('processing', started_at, 0.01, '正在准备处理视频…', upload_id),
+            f'UPDATE tasks SET {", ".join(updates)} WHERE upload_id=?',
+            params,
         )
 
 
@@ -173,8 +189,8 @@ def list_tasks(user_name=None, task_name=None, days=None, wechat_name=None):
         where.append('user_name = ?')
         params.append(user_name)
     if task_name:
-        where.append('task_name = ?')
-        params.append(task_name)
+        where.append('(task_name = ? OR user_name = ? OR wechat_name = ?)')
+        params.extend([task_name, task_name, task_name])
     if wechat_name:
         where.append('wechat_name = ?')
         params.append(wechat_name)
@@ -193,9 +209,11 @@ def list_tasks(user_name=None, task_name=None, days=None, wechat_name=None):
 def list_task_names():
     with get_conn() as conn:
         rows = conn.execute(
-            "SELECT DISTINCT task_name FROM tasks WHERE task_name IS NOT NULL AND task_name <> '' ORDER BY task_name ASC"
+            "SELECT DISTINCT COALESCE(NULLIF(task_name, ''), NULLIF(user_name, ''), NULLIF(wechat_name, '')) AS name "
+            "FROM tasks WHERE COALESCE(NULLIF(task_name, ''), NULLIF(user_name, ''), NULLIF(wechat_name, '')) IS NOT NULL "
+            "ORDER BY name ASC"
         ).fetchall()
-    return [r['task_name'] for r in rows]
+    return [r['name'] for r in rows]
 
 
 def add_comment(wechat_name, rating, content):

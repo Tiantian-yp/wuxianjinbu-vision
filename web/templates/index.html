@@ -1535,9 +1535,9 @@
                         ⚙️ 切法配置
                         <span class="form-label-hint">（可选，先练球再出集锦）</span>
                     </label>
-                    <div class="input-row">
-                        <input type="number" id="minDurationInput" min="0" max="600" step="1" value="6" placeholder="例如 6">
-                        <span class="unit">秒以上的片段才入集锦（低质量网前互搓也能省则省 🌚）</span>
+                    <div class="input-row" style="flex-wrap: wrap; align-items: center;">
+                        <input type="number" id="minDurationInput" min="0" max="600" step="1" value="6" placeholder="例如 6" style="flex: 0 0 90px; min-width: 80px;">
+                        <span class="unit" style="white-space: normal; word-break: break-word; overflow-wrap: anywhere; line-height: 1.45; flex: 1 1 0; min-width: 0;">秒以上的片段才入集锦（低质量网前互搓也能省则省 🌚）</span>
                     </div>
                     <div style="font-size:12px;color:#999;margin-top:6px;">
                         💡 经验之谈：5~10 秒以上，大概率是一整段「多拍回合」；填 0 就是保留所有片段，主打一个原汁原味。
@@ -2575,9 +2575,19 @@
             if (e.key === 'Escape') closeTaskNameModal();
         });
 
-        taskNameConfirmBtn && taskNameConfirmBtn.addEventListener('click', async () => {
+        processBtn.addEventListener('click', () => {
+            if (!currentUpload) return;
             if (!requireWechatName('开始处理')) return;
-            const raw = (taskNameInput.value || '').trim() || '神秘打球人';
+            if (wechatName) {
+                startProcessing(wechatName);
+            } else {
+                openTaskNameModal();
+            }
+        });
+
+        async function startProcessing(raw) {
+            if (!currentUpload) return;
+            raw = (raw || '').trim() || wechatName || '神秘打球人';
             try {
                 window.localStorage.setItem('badminton:last_task_name', raw);
             } catch (e) {}
@@ -2753,11 +2763,12 @@
                 progressContainer.style.display = 'none';
                 videoPreview.style.display = 'block';
             });
-        });
+        }
 
-        processBtn.addEventListener('click', () => {
-            if (!currentUpload) return;
-            openTaskNameModal();
+        taskNameConfirmBtn && taskNameConfirmBtn.addEventListener('click', () => {
+            if (!requireWechatName('开始处理')) return;
+            const raw = (taskNameInput.value || '').trim() || wechatName || '神秘打球人';
+            startProcessing(raw);
         });
 
         function renderStats(data) {
@@ -3053,7 +3064,7 @@
         }
 
         function taskInitial(task) {
-            const name = task.task_name || task.user_name || '神';
+            const name = task.task_name || task.user_name || task.wechat_name || '神';
             const first = Array.from(String(name).trim()).find(c => c && !/\s/.test(c)) || '神';
             if (/[\u4e00-\u9fa5A-Za-z0-9]/.test(first)) return first.toUpperCase();
             return '🏸';
@@ -3078,7 +3089,7 @@
                 const id = 'dy-' + (task.upload_id || String(idx)) + '-' + Math.random().toString(36).slice(2, 7);
                 const quote = pickCommentQuote(task);
                 const createdAt = formatDate(task.created_at);
-                const name = escapeHtml(task.task_name || task.user_name || '神秘打球人');
+                const name = escapeHtml(task.task_name || task.user_name || task.wechat_name || '神秘打球人');
                 const original = escapeHtml(task.original_filename || task.safe_filename || '无名录像');
                 const upload = escapeHtml(task.upload_url || '');
                 const files = task.output_files || [];
@@ -3193,7 +3204,11 @@
             currentHistoryFilter = historyTaskNameFilter.value;
             renderHistoryTaskFilter(lastHistoryPayload.task_names, currentHistoryFilter);
             const tasks = currentHistoryFilter
-                ? (lastHistoryPayload.tasks || []).filter(t => t.task_name === currentHistoryFilter)
+                ? (lastHistoryPayload.tasks || []).filter(t =>
+                    t.task_name === currentHistoryFilter ||
+                    t.user_name === currentHistoryFilter ||
+                    t.wechat_name === currentHistoryFilter
+                )
                 : (lastHistoryPayload.tasks || []);
             renderCommentFeed(tasks);
             if (!currentHistoryFilter) {

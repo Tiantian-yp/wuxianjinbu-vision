@@ -129,7 +129,7 @@ class TaskQueue:
                 if not future.done():
                     logger.warning('Task %s already running', upload_id)
                     return False
-        update_task_started(upload_id)
+        update_task_started(upload_id, task_name=task_name, user_name=user_name)
         future = self.executor.submit(
             self._run_task, upload_id, input_path, output_dir_abs,
             min_duration, wechat_name, user_name, task_name
