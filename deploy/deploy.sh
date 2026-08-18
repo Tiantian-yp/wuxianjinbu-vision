@@ -43,6 +43,7 @@ mkdir -p "$TMP_PKG/web/templates" "$TMP_PKG/src" "$TMP_PKG/deploy"
 
 cp web/app.py "$TMP_PKG/web/"
 cp web/models.py "$TMP_PKG/web/"
+cp web/task_queue.py "$TMP_PKG/web/"
 cp web/templates/index.html "$TMP_PKG/web/templates/"
 cp web/templates/guide.html "$TMP_PKG/web/templates/" 2>/dev/null || true
 cp src/*.py "$TMP_PKG/src/"
