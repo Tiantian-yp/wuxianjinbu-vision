@@ -228,16 +228,17 @@ def list_tasks(user_name=None, task_name=None, days=None, wechat_name=None, incl
     return [dict(r) for r in rows]
 
 
-def list_task_names():
+def list_task_names(include_deleted=False):
     with get_conn() as conn:
-        rows = conn.execute(
-            "SELECT DISTINCT name FROM ("
-            "  SELECT COALESCE(NULLIF(task_name, ''), NULLIF(user_name, ''), NULLIF(wechat_name, '')) AS name "
-            "  FROM tasks "
-            "  UNION "
-            "  SELECT DISTINCT wechat_name AS name FROM comments WHERE wechat_name IS NOT NULL AND wechat_name <> ''"
-            ") WHERE name IS NOT NULL ORDER BY name ASC"
-        ).fetchall()
+        sql = (
+            "SELECT DISTINCT COALESCE(NULLIF(task_name, ''), NULLIF(user_name, ''), NULLIF(wechat_name, '')) AS name "
+            "FROM tasks WHERE COALESCE(NULLIF(task_name, ''), NULLIF(user_name, ''), NULLIF(wechat_name, '')) IS NOT NULL "
+        )
+        params = []
+        if not include_deleted:
+            sql += "AND is_deleted = 0 "
+        sql += "ORDER BY name ASC"
+        rows = conn.execute(sql, params).fetchall()
     return [r['name'] for r in rows]
 
 

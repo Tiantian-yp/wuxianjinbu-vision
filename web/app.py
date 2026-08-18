@@ -101,11 +101,15 @@ def _require_wechat_name():
 
 
 def _format_comment_time(created_at):
+    from datetime import timezone, timedelta
     try:
         if created_at.endswith('Z'):
             dt = datetime.fromisoformat(created_at[:-1])
         else:
             dt = datetime.fromisoformat(created_at)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        dt = dt.astimezone(timezone(timedelta(hours=8)))
     except Exception:
         return created_at
     return dt.strftime('%Y-%m-%d %H:%M')
@@ -761,7 +765,7 @@ def list_files():
 
     return jsonify({
         'tasks': tasks,
-        'task_names': list_task_names(),
+        'task_names': list_task_names(include_deleted=is_admin),
         'is_admin': is_admin,
     })
 
