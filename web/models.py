@@ -209,9 +209,12 @@ def list_tasks(user_name=None, task_name=None, days=None, wechat_name=None):
 def list_task_names():
     with get_conn() as conn:
         rows = conn.execute(
-            "SELECT DISTINCT COALESCE(NULLIF(task_name, ''), NULLIF(user_name, ''), NULLIF(wechat_name, '')) AS name "
-            "FROM tasks WHERE COALESCE(NULLIF(task_name, ''), NULLIF(user_name, ''), NULLIF(wechat_name, '')) IS NOT NULL "
-            "ORDER BY name ASC"
+            "SELECT DISTINCT name FROM ("
+            "  SELECT COALESCE(NULLIF(task_name, ''), NULLIF(user_name, ''), NULLIF(wechat_name, '')) AS name "
+            "  FROM tasks "
+            "  UNION "
+            "  SELECT DISTINCT wechat_name AS name FROM comments WHERE wechat_name IS NOT NULL AND wechat_name <> ''"
+            ") WHERE name IS NOT NULL ORDER BY name ASC"
         ).fetchall()
     return [r['name'] for r in rows]
 
