@@ -609,7 +609,7 @@ def process_video():
             quality=23
         )
         encoder_speed_ratio = float(getattr(video_cutter, 'encoder_speed_ratio', 1.0))
-        encoder_label = getattr(video_cutter, 'encoder_name_label', video_cutter.video_encoder)
+        encoder_label = getattr(video_cutter, 'encoder_name_label', None) or 'libx264 (CPU)'
 
         cut_min_duration = None
         if min_duration is not None:
