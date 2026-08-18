@@ -60,11 +60,20 @@ from web.models import (
     list_task_names,
     get_task,
     delete_task,
+    soft_delete_task,
+    restore_task,
     add_comment,
     list_comments,
 )
 from web.task_queue import task_queue
 import json as _json
+
+ADMIN_WECHAT_NAME = '行遇书'
+
+
+def _is_admin(wechat_name):
+    return bool(wechat_name and wechat_name.startswith(ADMIN_WECHAT_NAME))
+
 
 init_db()
 
@@ -643,6 +652,8 @@ def _serialize_task(t):
         'created_at': t.get('created_at'),
         'started_at': t.get('started_at'),
         'completed_at': t.get('completed_at'),
+        'is_deleted': bool(t.get('is_deleted') or 0),
+        'deleted_at': t.get('deleted_at'),
         'result': result,
     }
 
@@ -718,12 +729,18 @@ def list_files():
     user_name = request.args.get('user_name')
     task_name = request.args.get('task_name')
     wechat_name = _require_wechat_name()
-    raw_tasks = list_tasks(user_name=user_name, task_name=task_name, days=None, wechat_name=wechat_name)
+    is_admin = _is_admin(wechat_name)
+    raw_tasks = list_tasks(
+        user_name=user_name,
+        task_name=task_name,
+        days=None,
+        show_all=is_admin,
+    )
     tasks = []
     for t in raw_tasks:
         output_dir_abs = os.path.join(app.config['OUTPUT_FOLDER'], t['upload_id'])
         output_files = []
-        if os.path.isdir(output_dir_abs):
+        if not t.get('is_deleted') and os.path.isdir(output_dir_abs):
             for f in sorted(os.listdir(output_dir_abs)):
                 fpath = os.path.join(output_dir_abs, f)
                 if os.path.isfile(fpath) and f.endswith('.mp4'):
@@ -738,12 +755,47 @@ def list_files():
         task_data = _serialize_task(t)
         task_data['output_files'] = output_files
         task_data['output_count'] = len(output_files)
+        task_data['is_owner'] = bool(wechat_name and t.get('wechat_name') == wechat_name)
+        task_data['is_admin'] = is_admin
         tasks.append(task_data)
 
     return jsonify({
         'tasks': tasks,
         'task_names': list_task_names(),
+        'is_admin': is_admin,
     })
+
+
+@app.route('/api/task/<upload_id>/delete', methods=['POST'])
+def soft_delete_task_api(upload_id):
+    wechat_name = _require_wechat_name()
+    if not wechat_name:
+        return jsonify({'error': '请先登记身份再操作'}), 401
+    task = get_task(upload_id)
+    if not task:
+        return jsonify({'error': '任务不存在'}), 404
+    is_admin = _is_admin(wechat_name)
+    is_owner = task.get('wechat_name') == wechat_name
+    if not (is_owner or is_admin):
+        return jsonify({'error': '只能删除自己的名场面哦'}), 403
+    soft_delete_task(upload_id)
+    logger.info('task soft-deleted upload_id=%s by=%s admin=%s', upload_id, wechat_name, is_admin)
+    return jsonify({'ok': True, 'message': '已隐藏，名场面已移入档案室回收站'})
+
+
+@app.route('/api/task/<upload_id>/restore', methods=['POST'])
+def restore_task_api(upload_id):
+    wechat_name = _require_wechat_name()
+    if not wechat_name:
+        return jsonify({'error': '请先登记身份再操作'}), 401
+    if not _is_admin(wechat_name):
+        return jsonify({'error': '只有管理员可以恢复'}), 403
+    task = get_task(upload_id)
+    if not task:
+        return jsonify({'error': '任务不存在'}), 404
+    restore_task(upload_id)
+    logger.info('task restored upload_id=%s by=%s', upload_id, wechat_name)
+    return jsonify({'ok': True, 'message': '已恢复，名场面重新可见'})
 
 
 @app.route('/uploads/<filename>')
@@ -766,34 +818,30 @@ def delete_upload(upload_id):
     task = get_task(upload_id)
     if not task:
         return jsonify({'error': 'Not found'}), 404
-    if task.get('wechat_name') and task['wechat_name'] != wechat_name:
+
+    is_admin = _is_admin(wechat_name)
+    if task.get('wechat_name') and task['wechat_name'] != wechat_name and not is_admin:
         return jsonify({'error': '这个任务不属于你哦，删除权限不足 🙅'}), 403
 
-    upload_path = os.path.join(app.config['UPLOAD_FOLDER'])
-    output_path = os.path.join(app.config['OUTPUT_FOLDER'], upload_id)
-
-    deleted = False
-
-    if os.path.isdir(upload_path):
-        for f in os.listdir(upload_path):
-            if f.startswith(upload_id):
-                try:
-                    os.remove(os.path.join(upload_path, f))
-                    deleted = True
-                except OSError:
-                    pass
-
-    if os.path.exists(output_path):
-        shutil.rmtree(output_path, ignore_errors=True)
-        deleted = True
-
-    delete_task(upload_id)
-
-    if deleted or task:
-        logger.info(f'deleted upload_id={upload_id} wechat_name={wechat_name}')
+    if is_admin:
+        upload_path = os.path.join(app.config['UPLOAD_FOLDER'])
+        output_path = os.path.join(app.config['OUTPUT_FOLDER'], upload_id)
+        if os.path.isdir(upload_path):
+            for f in os.listdir(upload_path):
+                if f.startswith(upload_id):
+                    try:
+                        os.remove(os.path.join(upload_path, f))
+                    except OSError:
+                        pass
+        if os.path.exists(output_path):
+            shutil.rmtree(output_path, ignore_errors=True)
+        delete_task(upload_id)
+        logger.info(f'admin hard-deleted upload_id={upload_id} by={wechat_name}')
         return jsonify({'message': 'Deleted successfully'}), 200
-    else:
-        return jsonify({'error': 'Not found'}), 404
+
+    soft_delete_task(upload_id)
+    logger.info(f'soft-deleted upload_id={upload_id} by={wechat_name}')
+    return jsonify({'message': '已隐藏', 'ok': True}), 200
 
 
 @app.route('/api/merge/<upload_id>', methods=['POST'])

@@ -1266,6 +1266,39 @@
             border-color: #e1d4ff;
         }
 
+        .dy-comment-item.is-deleted {
+            opacity: 0.55;
+            background: #f5f5f7;
+            border-color: #e0e0e5;
+        }
+
+        .dy-comment-item.is-deleted .dy-avatar {
+            filter: grayscale(0.7);
+        }
+
+        .deleted-badge {
+            display: inline-block;
+            font-size: 11px;
+            font-weight: 600;
+            color: #fff;
+            background: #999;
+            border-radius: 6px;
+            padding: 1px 7px;
+            margin-left: 6px;
+            vertical-align: middle;
+            letter-spacing: 0.5px;
+        }
+
+        .dy-delete-btn {
+            color: #c0392b !important;
+            font-size: 12px !important;
+        }
+
+        .dy-restore-btn {
+            color: #27ae60 !important;
+            font-size: 12px !important;
+        }
+
         .dy-avatar {
             width: 44px;
             height: 44px;
@@ -1611,7 +1644,7 @@
                     <select id="historyTaskNameFilter">
                         <option value="">全场次（无差别档案室）</option>
                     </select>
-                    <button class="btn btn-secondary btn-small" id="historyRefreshBtn" type="button">🔄 看看又有谁进球了</button>
+                    <button class="btn btn-secondary btn-small" id="historyRefreshBtn" type="button">🔄 刷新看下谁又扣杀了</button>
                 </div>
             </div>
 
@@ -3096,8 +3129,14 @@
                 const totalDur = files.reduce((s, f) => s + (f.duration || 0), 0);
                 const totalSize = files.reduce((s, f) => s + (f.size || 0), 0);
                 const status = task.status || 'pending';
-                const statusChip = `<span class="chip ${escapeHtml(status)}">${escapeHtml(status)}</span>`;
-                const uploadBtn = upload
+                const isDel = !!task.is_deleted;
+                const canDelete = !isDel && (task.is_owner || task.is_admin);
+                const canRestore = isDel && task.is_admin;
+                const deletedBadge = isDel ? '<span class="deleted-badge">已删除</span>' : '';
+                const statusChip = isDel
+                    ? '<span class="chip" style="background:#999;color:#fff;">已隐藏</span>'
+                    : `<span class="chip ${escapeHtml(status)}">${escapeHtml(status)}</span>`;
+                const uploadBtn = (!isDel && upload)
                     ? `<a class="link-btn secondary" href="${upload}" target="_blank" rel="noopener">📄 看原录像</a>`
                     : '';
                 const previews = (files.length > 4 ? files.slice(0, 4) : files).map(f => `
@@ -3115,20 +3154,26 @@
                         </div>
                     </div>
                 ` : '';
-                const quickDownloadHtml = files.length > 0 ? `
+                const quickDownloadHtml = (!isDel && files.length > 0) ? `
                     <a class="link-btn" href="#" onclick="window._dyDownloadAll(${JSON.stringify(files.map(f => ({url: f.url, name: f.name}))).replace(/"/g, '&quot;')});return false;">📥 一健全下这 ${files.length} 段</a>
                 ` : '';
-                const loadBtnHtml = files.length > 0 ? `
+                const loadBtnHtml = (!isDel && files.length > 0) ? `
                     <button type="button" class="link-btn secondary" onclick="window.loadHistoryTask('${escapeHtml(task.upload_id)}')">🎯 载入到上方结果区</button>
                 ` : '';
+                const deleteBtnHtml = canDelete ? `
+                    <button type="button" class="link-btn dy-delete-btn" onclick="window.deleteHistoryTask('${escapeHtml(task.upload_id)}')">🗑️ 删除</button>
+                ` : '';
+                const restoreBtnHtml = canRestore ? `
+                    <button type="button" class="link-btn dy-restore-btn" onclick="window.restoreHistoryTask('${escapeHtml(task.upload_id)}')">♻️ 恢复</button>
+                ` : '';
                 return `
-                    <div class="dy-comment-item" data-upload-id="${escapeHtml(task.upload_id)}">
+                    <div class="dy-comment-item${isDel ? ' is-deleted' : ''}" data-upload-id="${escapeHtml(task.upload_id)}">
                         <div class="dy-avatar" title="这是 ${name} 的名场面哦～">${taskInitial(task)}</div>
                         <div class="dy-body">
                             <div class="dy-top-row">
                                 <div class="dy-user-wrap">
-                                    <span class="dy-user-name">${name}</span>
-                                    <span class="dy-user-title">往届名场面 #${idx + 1}</span>
+                                    <span class="dy-user-name">${name}${deletedBadge}</span>
+                                    <span class="dy-user-title">往届名场面 #${idx + 1}${task.is_admin ? ' 👑 管理员视角' : ''}</span>
                                 </div>
                                 <span class="dy-time">${createdAt}</span>
                             </div>
@@ -3141,16 +3186,18 @@
                                 ${totalSize ? `<span>💾 总大小 ${formatHumanSize(totalSize)}</span>` : ''}
                                 <span>🙋 归属：${name}</span>
                             </div>
-                            ${files.length > 0 ? `
+                            ${!isDel && files.length > 0 ? `
                                 <div class="dy-files-row">
                                     ${previews}
                                 </div>
                                 ${expandBtnHtml}
-                            ` : `<div class="dy-meta-row"><span style="color:#9b8fcc;">（这一次还没产出片段哦，可能球还在热身🌝）</span></div>`}
+                            ` : (isDel ? '<div class="dy-meta-row"><span style="color:#999;">（此任务已被隐藏，普通用户不可见）</span></div>' : '<div class="dy-meta-row"><span style="color:#9b8fcc;">（这一次还没产出片段哦，可能球还在热身🌝）</span></div>')}
                             <div class="dy-actions-row">
                                 ${uploadBtn}
                                 ${quickDownloadHtml}
                                 ${loadBtnHtml}
+                                ${deleteBtnHtml}
+                                ${restoreBtnHtml}
                             </div>
                         </div>
                     </div>
@@ -3249,6 +3296,50 @@
             } else {
                 showWarnToast('这局暂时还没产出片段，先去打一拍再来～');
             }
+        };
+
+        window.deleteHistoryTask = function(uploadId) {
+            if (!uploadId) return;
+            const ok = window.confirm('确定要把这局名场面藏起来吗？\n（只是软删除，自己看不到了，管理员还能恢复哦 🏸）');
+            if (!ok) return;
+            fetch(safeApiUrl(`/api/task/${encodeURIComponent(uploadId)}/delete`), {
+                method: 'POST',
+                headers: { ...getWechatHeader(), 'Content-Type': 'application/json' },
+                ...FETCH_OPTIONS_BASE,
+            })
+                .then(response => parseJsonOrFriendly(response))
+                .then(data => {
+                    if (data && data.ok) {
+                        showToast('🗑️ 已藏好，名场面移入档案室回收站');
+                        loadHistory();
+                    } else {
+                        showErrorToast((data && data.error) || '删除失败');
+                    }
+                })
+                .catch(err => {
+                    showErrorToast('删除失败：' + (err && err.message ? err.message : '网络异常'));
+                });
+        };
+
+        window.restoreHistoryTask = function(uploadId) {
+            if (!uploadId) return;
+            fetch(safeApiUrl(`/api/task/${encodeURIComponent(uploadId)}/restore`), {
+                method: 'POST',
+                headers: { ...getWechatHeader(), 'Content-Type': 'application/json' },
+                ...FETCH_OPTIONS_BASE,
+            })
+                .then(response => parseJsonOrFriendly(response))
+                .then(data => {
+                    if (data && data.ok) {
+                        showToast('♻️ 已恢复，名场面重新可见');
+                        loadHistory();
+                    } else {
+                        showErrorToast((data && data.error) || '恢复失败');
+                    }
+                })
+                .catch(err => {
+                    showErrorToast('恢复失败：' + (err && err.message ? err.message : '网络异常'));
+                });
         };
 
         minDurationInput && minDurationInput.addEventListener('input', () => {

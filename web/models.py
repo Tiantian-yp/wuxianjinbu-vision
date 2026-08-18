@@ -56,6 +56,8 @@ def init_db():
         _ensure_column(conn, 'tasks', 'started_at', 'TEXT')
         _ensure_column(conn, 'tasks', 'total_segments', 'INTEGER DEFAULT 0')
         _ensure_column(conn, 'tasks', 'result_data', 'TEXT')
+        _ensure_column(conn, 'tasks', 'is_deleted', 'INTEGER DEFAULT 0')
+        _ensure_column(conn, 'tasks', 'deleted_at', 'TEXT')
         conn.execute('CREATE INDEX IF NOT EXISTS idx_tasks_created ON tasks(created_at DESC)')
         conn.execute('CREATE INDEX IF NOT EXISTS idx_tasks_user_name ON tasks(user_name)')
         conn.execute('CREATE INDEX IF NOT EXISTS idx_tasks_task_name ON tasks(task_name)')
@@ -126,6 +128,23 @@ def delete_task(upload_id):
         conn.execute('DELETE FROM tasks WHERE upload_id = ?', (upload_id,))
 
 
+def soft_delete_task(upload_id):
+    now = datetime.utcnow().isoformat() + 'Z'
+    with get_conn() as conn:
+        conn.execute(
+            'UPDATE tasks SET is_deleted=1, deleted_at=? WHERE upload_id=?',
+            (now, upload_id),
+        )
+
+
+def restore_task(upload_id):
+    with get_conn() as conn:
+        conn.execute(
+            'UPDATE tasks SET is_deleted=0, deleted_at=NULL WHERE upload_id=?',
+            (upload_id,),
+        )
+
+
 def update_task_completed(upload_id, status, output_count, completed_at=None, result_data=None, error=None):
     if completed_at is None:
         completed_at = datetime.utcnow().isoformat() + 'Z'
@@ -181,19 +200,22 @@ def update_task_started(upload_id, task_name=None, user_name=None):
         )
 
 
-def list_tasks(user_name=None, task_name=None, days=None, wechat_name=None):
+def list_tasks(user_name=None, task_name=None, days=None, wechat_name=None, include_deleted=False, show_all=False):
     sql = 'SELECT * FROM tasks'
     where = []
     params = []
+    if not show_all:
+        if not include_deleted:
+            where.append('is_deleted = 0')
+        if wechat_name:
+            where.append('wechat_name = ?')
+            params.append(wechat_name)
     if user_name:
         where.append('user_name = ?')
         params.append(user_name)
     if task_name:
         where.append('(task_name = ? OR user_name = ? OR wechat_name = ?)')
         params.extend([task_name, task_name, task_name])
-    if wechat_name:
-        where.append('wechat_name = ?')
-        params.append(wechat_name)
     if days:
         cutoff = (datetime.utcnow() - timedelta(days=int(days))).isoformat() + 'Z'
         where.append('created_at >= ?')
