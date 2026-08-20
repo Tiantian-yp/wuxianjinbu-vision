@@ -8,13 +8,11 @@ __pycache__/
 dist/
 build/
 *.egg
-
 # Virtualenv
 venv/
 .venv/
 env/
 ENV/
-
 # Flask / app runtime
 web/uploads/*
 !web/uploads/.gitkeep
@@ -25,20 +23,23 @@ web/*.db
 logs/
 run/
 .env
-
+.env.local
+.env.production
+# v0.1.0-hotfix: 包含敏感信息的部署脚本不提交
+deploy/deploy_via_scp.sh
 # Generated output
 output/
 input_video/
+analysis_output/
 models/TrackNetV3/TrackNetV3_ckpts.zip
-
 # IDE / OS
 .vscode/
 .idea/
 .DS_Store
+Thumbs.db
 .tmp-*
 *.swp
 *.swo
-
 # Top-level scratch video / JSON outputs
 *.mp4
 *.mov
@@ -47,4 +48,4 @@ models/TrackNetV3/TrackNetV3_ckpts.zip
 *.avi
 *.mkv
 *.json
-web/badminton.db.bak_20260811_210014
+web/badminton.db.bak_*
