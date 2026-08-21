@@ -5,19 +5,33 @@ import secrets
 import shutil
 import logging
 import traceback
-from datetime import datetime
+import re
+from datetime import datetime, timedelta
 from functools import wraps
 from flask import Flask, request, jsonify, render_template, send_from_directory
 from flask_cors import CORS
 
+# ==================== v0.2.0 Security+: 加载 .env 文件 ====================
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass  # python-dotenv 未安装时跳过
+
 app = Flask(__name__)
-CORS(app)
+
+# ==================== v0.2.0 Security+: CORS 可配置来源 ====================
+CORS_ORIGINS_STR = os.getenv('CORS_ORIGINS', '*')
+if CORS_ORIGINS_STR == '*':
+    CORS(app, resources={r"/api/*": {"origins": "*"}})
+else:
+    CORS_ORIGINS = [origin.strip() for origin in CORS_ORIGINS_STR.split(',') if origin.strip()]
+    CORS(app, resources={r"/api/*": {"origins": CORS_ORIGINS}})
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.dirname(BASE_DIR)
 
 # ==================== v0.1.0 Hotfix: 统一配置管理 ====================
-# 所有配置从环境变量读取，提供合理默认值
 UPLOAD_DIR = os.getenv('UPLOAD_DIR', os.path.join(BASE_DIR, 'uploads'))
 OUTPUT_DIR = os.getenv('OUTPUT_DIR', os.path.join(BASE_DIR, 'outputs'))
 MAX_CONTENT_MB = int(os.getenv('MAX_CONTENT_MB', '600'))
@@ -26,31 +40,53 @@ PORT = int(os.getenv('PORT', '5000'))
 DEBUG = os.getenv('FLASK_DEBUG', 'false').lower() in ('1', 'true', 'yes')
 LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO')
 
-# 安全配置 - 从环境变量读取，不再硬编码
+# 安全配置
 ADMIN_WECHAT_NAME = os.getenv('ADMIN_WECHAT_NAME', '行遇书')
-ADMIN_PASSWORD = os.getenv('ADMIN_PASSWORD', '')  # 必须通过环境变量设置
-SECRET_KEY = os.getenv('SECRET_KEY', secrets.token_urlsafe(32))  # 用于token签名
+ADMIN_PASSWORD = os.getenv('ADMIN_PASSWORD', '')
+SECRET_KEY = os.getenv('SECRET_KEY', secrets.token_urlsafe(32))
 
-# 处理配置 - 支持环境变量覆盖
+# v0.2.0 Security+: Token 过期配置
+TOKEN_EXPIRY_DAYS = int(os.getenv('TOKEN_EXPIRY_DAYS', '30'))
+MAX_WECHAT_NAME_LENGTH = int(os.getenv('MAX_WECHAT_NAME_LENGTH', '32'))
+
+# 处理配置
 ALLOWED_EXTENSIONS_STR = os.getenv('ALLOWED_EXTENSIONS', 'mp4,mov,qt,m4v,3gp,avi,mkv,flv,wmv,webm,mts,m2ts')
 ALLOWED_EXTENSIONS = set(ALLOWED_EXTENSIONS_STR.split(','))
+ALLOWED_MIME_TYPES = {
+    'video/mp4', 'video/quicktime', 'video/x-msvideo', 'video/x-matroska',
+    'video/x-flv', 'video/x-ms-wmv', 'video/webm', 'video/mp2t',
+    'video/mpeg', 'video/3gpp', 'video/3gpp2',
+}
 RECOMMENDED_MAX_DURATION_MINUTES = int(os.getenv('RECOMMENDED_MAX_DURATION_MINUTES', '10'))
 HARD_MAX_DURATION_SECONDS = int(os.getenv('HARD_MAX_DURATION_SECONDS', str(30 * 60)))
 BUDGET_SECONDS_FOR_PROCESS = int(os.getenv('BUDGET_SECONDS_FOR_PROCESS', '180'))
 BASE_DETECT_RATIO = float(os.getenv('BASE_DETECT_RATIO', '0.08'))
 BASE_CUT_RATIO = float(os.getenv('BASE_CUT_RATIO', '0.22'))
 
-# 全局异常处理
+# ==================== v0.2.0 Security+: 安全响应头 ====================
+@app.after_request
+def add_security_headers(response):
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options'] = 'DENY'
+    response.headers['X-XSS-Protection'] = '1; mode=block'
+    response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+    response.headers['Permissions-Policy'] = 'camera=(), microphone=(), geolocation=()'
+    # HSTS (仅在HTTPS环境下启用，通过环境变量控制)
+    if os.getenv('ENABLE_HSTS', 'false').lower() in ('1', 'true', 'yes'):
+        response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
+    return response
+
+# ==================== v0.2.0 Security+: 全局异常处理（错误信息脱敏） ====================
 @app.errorhandler(Exception)
 def handle_exception(e):
-    logger.error(f"Unhandled exception: {str(e)}")
-    logger.error(traceback.format_exc())
-    # 生产环境不返回详细错误栈
+    logger.error(f"Unhandled exception: {type(e).__name__}")
     if DEBUG:
+        logger.error(traceback.format_exc())
         return jsonify({
             'error': str(e),
             'traceback': traceback.format_exc()
         }), 500
+    # v0.2.0: 生产环境不暴露任何内部错误细节
     return jsonify({'error': '服务器内部错误，请稍后重试'}), 500
 
 @app.errorhandler(404)
@@ -60,6 +96,14 @@ def not_found(e):
 @app.errorhandler(413)
 def file_too_large(e):
     return jsonify({'error': f'文件太大，最大支持 {MAX_CONTENT_MB}MB'}), 413
+
+@app.errorhandler(400)
+def bad_request(e):
+    return jsonify({'error': '请求参数错误'}), 400
+
+@app.errorhandler(405)
+def method_not_allowed(e):
+    return jsonify({'error': '请求方法不允许'}), 405
 
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 os.makedirs(OUTPUT_DIR, exist_ok=True)
@@ -102,25 +146,44 @@ from web.models import (
 from web.task_queue import task_queue
 import json as _json
 
-# ==================== v0.1.0 Hotfix: Token 认证机制 ====================
+# ==================== v0.1.0 Hotfix + v0.2.0: Token 认证机制（支持过期） ====================
 import hmac
 import hashlib
+import time as _time
 
-# 内存中存储 task_token -> upload_id 映射（重启后失效，可接受）
+# 内存中存储 task_token -> {upload_id, created_at} 映射
 _TASK_TOKENS = {}
 
+def _clean_expired_tokens():
+    """清理过期的token"""
+    now = _time.time()
+    expiry = TOKEN_EXPIRY_DAYS * 86400
+    expired = [t for t, info in _TASK_TOKENS.items() if now - info.get('created_at', 0) > expiry]
+    for t in expired:
+        _TASK_TOKENS.pop(t, None)
+
 def _generate_task_token(upload_id: str) -> str:
-    """生成任务访问token"""
+    """生成任务访问token（带创建时间）"""
+    _clean_expired_tokens()
     token = secrets.token_urlsafe(24)
-    _TASK_TOKENS[token] = upload_id
+    _TASK_TOKENS[token] = {
+        'upload_id': upload_id,
+        'created_at': _time.time(),
+    }
     return token
 
 def _verify_task_token(token: str, upload_id: str) -> bool:
-    """验证任务token是否匹配"""
+    """验证任务token是否匹配且未过期"""
     if not token:
         return False
-    stored_id = _TASK_TOKENS.get(token)
-    return stored_id == upload_id
+    info = _TASK_TOKENS.get(token)
+    if not info:
+        return False
+    # 检查过期
+    if _time.time() - info.get('created_at', 0) > TOKEN_EXPIRY_DAYS * 86400:
+        _TASK_TOKENS.pop(token, None)
+        return False
+    return info.get('upload_id') == upload_id
 
 def _verify_admin_password(password: str) -> bool:
     """验证管理员密码"""
@@ -129,38 +192,38 @@ def _verify_admin_password(password: str) -> bool:
     return hmac.compare_digest(str(password or ''), str(ADMIN_PASSWORD))
 
 def _is_admin(wechat_name, admin_password=None):
-    """判断是否管理员 - 支持微信名前缀 + 密码验证"""
-    # 如果设置了 ADMIN_PASSWORD，则必须同时提供密码
+    """判断是否管理员"""
     if ADMIN_PASSWORD:
         if not _verify_admin_password(admin_password):
             return False
-    # 微信名前缀验证
     return bool(wechat_name and wechat_name.startswith(ADMIN_WECHAT_NAME))
 
+def _can_access_task(upload_id, wechat_name, admin_password, task_token):
+    """统一的任务访问权限检查逻辑（v0.2.0: 重构为独立函数）"""
+    task = get_task(upload_id)
+    if not task:
+        return None, (jsonify({'error': '任务不存在'}), 404)
+
+    if _is_admin(wechat_name, admin_password):
+        return task, None
+    if _verify_task_token(task_token, upload_id):
+        return task, None
+    if task.get('wechat_name') and wechat_name and task['wechat_name'] == wechat_name:
+        return task, None
+
+    return None, (jsonify({'error': '无权访问此任务，请提供有效的 task_token'}), 403)
+
 def _require_task_access(f):
-    """装饰器：验证任务访问权限（task_token 或 所有者 或 管理员）"""
+    """装饰器：验证任务访问权限"""
     @wraps(f)
     def decorated(upload_id, *args, **kwargs):
         wechat_name = _require_wechat_name()
-        task = get_task(upload_id)
-        if not task:
-            return jsonify({'error': '任务不存在'}), 404
-
-        # 管理员可以访问所有任务
-        admin_password = request.headers.get('X-Admin-Password') or ''
-        if _is_admin(wechat_name, admin_password):
-            return f(upload_id, *args, **kwargs)
-
-        # 验证 task_token
+        admin_password = _get_admin_password()
         task_token = request.headers.get('X-Task-Token') or request.args.get('task_token')
-        if _verify_task_token(task_token, upload_id):
-            return f(upload_id, *args, **kwargs)
-
-        # 验证是否是所有者
-        if task.get('wechat_name') and wechat_name and task['wechat_name'] == wechat_name:
-            return f(upload_id, *args, **kwargs)
-
-        return jsonify({'error': '无权访问此任务，请提供有效的 task_token'}), 403
+        task, err = _can_access_task(upload_id, wechat_name, admin_password, task_token)
+        if err:
+            return err
+        return f(upload_id, *args, **kwargs)
     return decorated
 
 init_db()
@@ -171,10 +234,11 @@ logging.basicConfig(
 )
 logger = logging.getLogger('badminton-web')
 
-logger.info(f"v0.1.0-hotfix starting - admin_wechat_prefix={ADMIN_WECHAT_NAME}, admin_password_set={bool(ADMIN_PASSWORD)}")
+logger.info(f"v0.2.0-security starting - admin_wechat_prefix={ADMIN_WECHAT_NAME}, admin_password_set={bool(ADMIN_PASSWORD)}, cors_origins={CORS_ORIGINS_STR}")
 
 
 def _require_wechat_name():
+    """获取并验证微信名（v0.2.0: 添加长度和字符验证）"""
     header_value = request.headers.get('X-Wechat-Name') or ''
     try:
         from urllib.parse import unquote
@@ -187,11 +251,19 @@ def _require_wechat_name():
         value = (body.get('wechat_name') or '').strip()
     if not value and request.method == 'POST' and request.form:
         value = (request.form.get('wechat_name') or '').strip()
+
+    if value:
+        # v0.2.0: 长度限制
+        if len(value) > MAX_WECHAT_NAME_LENGTH:
+            return None
+        # v0.2.0: 移除潜在危险字符（控制字符、特殊符号）
+        value = re.sub(r'[\x00-\x1f\x7f<>"\'&]', '', value)
+        value = value.strip()
+
     return value or None
 
 
 def _get_admin_password():
-    """从请求中获取管理员密码"""
     pwd = request.headers.get('X-Admin-Password') or ''
     if not pwd and request.is_json:
         body = request.get_json(silent=True) or {}
@@ -217,8 +289,40 @@ def _format_comment_time(created_at):
 
 
 def allowed_file(filename):
-    return '.' in filename and \
-           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+    """v0.2.0: 双重验证：扩展名 + 实际文件内容"""
+    if not filename or '.' not in filename:
+        return False
+    ext = filename.rsplit('.', 1)[1].lower()
+    return ext in ALLOWED_EXTENSIONS
+
+
+def validate_video_file(filepath):
+    """v0.2.0: 使用ffprobe验证文件是否为有效视频"""
+    try:
+        import subprocess
+        command = [
+            'ffprobe', '-v', 'error', '-print_format', 'json',
+            '-show_format', '-show_streams', filepath
+        ]
+        result = subprocess.run(command, capture_output=True, text=True, timeout=30)
+        if result.returncode != 0:
+            return False, "文件不是有效的视频文件"
+        info = json.loads(result.stdout)
+        # 检查是否有视频流
+        has_video = any(s.get('codec_type') == 'video' for s in info.get('streams', []))
+        if not has_video:
+            return False, "文件中未检测到视频流"
+        # 检查时长
+        duration = float(info['format'].get('duration', 0))
+        if duration < 0.1:
+            return False, "视频时长过短"
+        return True, None
+    except subprocess.TimeoutExpired:
+        return False, "视频文件验证超时"
+    except Exception as e:
+        logger.warning(f'Video validation failed for {filepath}: {e}')
+        # ffprobe不可用时，允许通过（降级处理）
+        return True, None
 
 
 def get_file_info(filepath):
@@ -404,7 +508,7 @@ def estimate_process_plan(source_duration_seconds, width=None, height=None,
 def health():
     return jsonify({
         'status': 'ok',
-        'version': 'v0.1.0-hotfix',
+        'version': 'v0.2.0-security',
         'time': datetime.utcnow().isoformat() + 'Z',
         'upload_dir': UPLOAD_DIR,
         'output_dir': OUTPUT_DIR
@@ -427,7 +531,7 @@ def app_config():
     except Exception:
         pass
     return jsonify({
-        'version': 'v0.1.0-hotfix',
+        'version': 'v0.2.0-security',
         'recommended_max_duration_minutes': RECOMMENDED_MAX_DURATION_MINUTES,
         'hard_max_duration_seconds': HARD_MAX_DURATION_SECONDS,
         'budget_processing_seconds': BUDGET_SECONDS_FOR_PROCESS,
@@ -435,6 +539,7 @@ def app_config():
         'max_upload_mb': MAX_CONTENT_MB,
         'encoder_label': encoder_label,
         'auth_required': True,
+        'token_expiry_days': TOKEN_EXPIRY_DAYS,
     })
 
 
@@ -537,27 +642,41 @@ def estimate_process():
 def upload_video():
     if 'file' not in request.files:
         logger.warning('upload request missing file part')
-        return jsonify({'error': 'No file part'}), 400
+        return jsonify({'error': '未找到上传文件'}), 400
 
     file = request.files['file']
     wechat_name = _require_wechat_name()
 
+    # v0.2.0: 验证微信名
     if not wechat_name:
         return jsonify({'error': '请先填写可爱的微信名再来上传哦 ✨'}), 400
+    raw_wechat = request.headers.get('X-Wechat-Name') or ''
+    if raw_wechat and len(raw_wechat) > MAX_WECHAT_NAME_LENGTH:
+        return jsonify({'error': f'微信名太长啦，最多 {MAX_WECHAT_NAME_LENGTH} 个字符 🎀'}), 400
 
     if file.filename == '':
-        return jsonify({'error': 'No selected file'}), 400
+        return jsonify({'error': '未选择文件'}), 400
 
+    # v0.2.0: 先验证扩展名
     if not file or not allowed_file(file.filename):
-        return jsonify({'error': 'File type not allowed'}), 400
+        return jsonify({'error': '不支持的文件格式，请上传 mp4/mov/avi/mkv 等视频文件'}), 400
 
     upload_id = str(uuid.uuid4())
     filename = file.filename
-    # v0.1.0-hotfix: 文件名安全处理，防止路径遍历
     safe_original = os.path.basename(filename)
     safe_filename = f"{upload_id}_{safe_original}"
     filepath = os.path.join(app.config['UPLOAD_FOLDER'], safe_filename)
     file.save(filepath)
+
+    # v0.2.0: 验证文件内容是否为有效视频
+    is_valid, err_msg = validate_video_file(filepath)
+    if not is_valid:
+        try:
+            if os.path.exists(filepath):
+                os.remove(filepath)
+        except OSError:
+            pass
+        return jsonify({'error': err_msg or '文件验证失败，请上传有效的视频文件'}), 400
 
     upload_url = f'/uploads/{safe_filename}'
     try:
@@ -591,7 +710,6 @@ def upload_video():
             'duration_human': format_minutes_str(duration_seconds),
         }), 413
 
-    # v0.1.0-hotfix: 生成 task_token
     task_token = _generate_task_token(upload_id)
 
     create_task({
@@ -631,11 +749,16 @@ def upload_video():
         if estimate.get('exceeds_recommended'):
             warning = estimate.get('recommendation_message')
 
-    logger.info(f'uploaded file: {safe_filename} size={upload_size} duration={duration_seconds}s wechat_name={wechat_name}')
+    logger.info(f'uploaded file: {safe_filename} size={upload_size} duration={duration_seconds}s wechat={wechat_name}')
+
+    # v0.2.0: 生成分享链接
+    share_url = f'/?task_token={task_token}&upload_id={upload_id}'
 
     response = {
         'upload_id': upload_id,
-        'task_token': task_token,  # v0.1.0-hotfix: 返回 task_token，客户端需要保存
+        'task_token': task_token,
+        'share_url': share_url,
+        'token_expiry_days': TOKEN_EXPIRY_DAYS,
         'filename': safe_original,
         'safe_filename': safe_filename,
         'url': upload_url,
@@ -676,16 +799,19 @@ def process_video():
         return jsonify({'error': '请先填写可爱的微信名再来处理视频哦 🏸'}), 400
 
     if not upload_id or not safe_filename:
-        return jsonify({'error': 'Missing upload_id or safe_filename'}), 400
+        return jsonify({'error': '缺少必要参数'}), 400
+
+    # v0.2.0: 验证参数格式
+    if not re.match(r'^[a-f0-9-]{36}$', upload_id or ''):
+        return jsonify({'error': '无效的任务ID'}), 400
 
     input_path = os.path.join(app.config['UPLOAD_FOLDER'], safe_filename)
 
     if not os.path.exists(input_path):
-        return jsonify({'error': 'File not found'}), 404
+        return jsonify({'error': '文件未找到'}), 404
 
     task = get_task(upload_id)
     if task and task.get('wechat_name') and task['wechat_name'] != wechat_name:
-        # v0.1.0-hotfix: 允许提供 task_token 来处理
         task_token = request.headers.get('X-Task-Token') or data.get('task_token')
         if not _verify_task_token(task_token, upload_id):
             return jsonify({'error': '这个视频不属于你哦，处理权限不足 🙅'}), 403
@@ -708,7 +834,6 @@ def process_video():
     upload_url = f'/uploads/{safe_filename}'
 
     if task is None:
-        # 新任务也生成 token
         task_token = _generate_task_token(upload_id)
         create_task({
             'upload_id': upload_id,
@@ -787,7 +912,7 @@ def _serialize_task(t):
 def task_status(upload_id):
     task = get_task(upload_id)
     if not task:
-        return jsonify({'error': 'Task not found'}), 404
+        return jsonify({'error': '任务不存在'}), 404
 
     output_dir_abs = os.path.join(app.config['OUTPUT_FOLDER'], upload_id)
     output_files = []
@@ -811,17 +936,12 @@ def task_status(upload_id):
 
 @app.route('/api/task/<upload_id>/events')
 def task_events(upload_id):
-    # SSE 端点也验证权限
     wechat_name = _require_wechat_name()
-    task = get_task(upload_id)
-    if not task:
-        return jsonify({'error': 'Task not found'}), 404
-
     admin_password = _get_admin_password()
     task_token = request.args.get('task_token')
-    if not _is_admin(wechat_name, admin_password) and not _verify_task_token(task_token, upload_id):
-        if not (task.get('wechat_name') and wechat_name and task['wechat_name'] == wechat_name):
-            return jsonify({'error': '无权访问此任务'}), 403
+    task, err = _can_access_task(upload_id, wechat_name, admin_password, task_token)
+    if err:
+        return err
 
     def generate():
         if task:
@@ -872,7 +992,6 @@ def list_files():
     )
     tasks = []
     for t in raw_tasks:
-        # 非管理员只能看到自己的任务
         if not is_admin and t.get('wechat_name') != wechat_name:
             continue
         output_dir_abs = os.path.join(app.config['OUTPUT_FOLDER'], t['upload_id'])
@@ -940,17 +1059,34 @@ def restore_task_api(upload_id):
 
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):
-    # v0.1.0-hotfix: 文件名安全检查
     safe_name = os.path.basename(filename)
+    # v0.2.0: 验证文件名格式
+    if not re.match(r'^[a-f0-9-]{36}_.+\.(mp4|mov|qt|m4v|3gp|avi|mkv|flv|wmv|webm|mts|m2ts)$', safe_name, re.IGNORECASE):
+        return jsonify({'error': '无效的文件名'}), 400
     return send_from_directory(app.config['UPLOAD_FOLDER'], safe_name)
 
 
 @app.route('/outputs/<upload_id>/<filename>')
 def output_file(upload_id, filename):
-    # v0.1.0-hotfix: 验证输出文件访问权限
+    # v0.2.0 Security+: 输出文件访问控制
+    wechat_name = _require_wechat_name()
+    admin_password = _get_admin_password()
+    task_token = request.args.get('task_token') or request.headers.get('X-Task-Token')
+    task, err = _can_access_task(upload_id, wechat_name, admin_password, task_token)
+    if err:
+        return err
+
     output_dir = os.path.join(app.config['OUTPUT_FOLDER'], upload_id)
     safe_name = os.path.basename(filename)
-    # 注意：输出文件是公开可访问的片段，但可以考虑进一步限制
+    # v0.2.0: 验证文件名格式（只允许mp4文件和merged_开头的合并文件）
+    if not re.match(r'^[a-zA-Z0-9_.-]+\.(mp4|jpg|jpeg|png|gif|webp|json|txt)$', safe_name, re.IGNORECASE):
+        return jsonify({'error': '无效的文件名'}), 400
+    # 防止目录遍历
+    full_path = os.path.join(output_dir, safe_name)
+    if not os.path.abspath(full_path).startswith(os.path.abspath(output_dir)):
+        return jsonify({'error': '无效的文件路径'}), 400
+    if not os.path.isfile(full_path):
+        return jsonify({'error': '文件不存在'}), 404
     return send_from_directory(output_dir, safe_name)
 
 
@@ -963,7 +1099,7 @@ def delete_upload(upload_id):
 
     task = get_task(upload_id)
     if not task:
-        return jsonify({'error': 'Not found'}), 404
+        return jsonify({'error': '任务不存在'}), 404
 
     admin_password = _get_admin_password()
     is_admin = _is_admin(wechat_name, admin_password)
@@ -986,11 +1122,11 @@ def delete_upload(upload_id):
             shutil.rmtree(output_path, ignore_errors=True)
         delete_task(upload_id)
         # 清理token
-        tokens_to_remove = [t for t, uid in _TASK_TOKENS.items() if uid == upload_id]
+        tokens_to_remove = [t for t, info in _TASK_TOKENS.items() if info.get('upload_id') == upload_id]
         for t in tokens_to_remove:
             _TASK_TOKENS.pop(t, None)
         logger.info(f'admin hard-deleted upload_id={upload_id} by={wechat_name}')
-        return jsonify({'message': 'Deleted successfully'}), 200
+        return jsonify({'message': '删除成功'}), 200
 
     soft_delete_task(upload_id)
     logger.info(f'soft-deleted upload_id={upload_id} by={wechat_name}')
@@ -1015,6 +1151,10 @@ def merge_segments(upload_id):
     if not file_names:
         return jsonify({'error': '请选择要合并的片段'}), 400
 
+    # v0.2.0: 限制合并片段数量
+    if len(file_names) > 50:
+        return jsonify({'error': '一次最多合并50个片段'}), 400
+
     output_dir_abs = os.path.join(app.config['OUTPUT_FOLDER'], upload_id)
     if not os.path.isdir(output_dir_abs):
         return jsonify({'error': '输出目录不存在'}), 404
@@ -1026,7 +1166,13 @@ def merge_segments(upload_id):
     valid_files = []
     for fname in file_names:
         safe_fname = os.path.basename(fname)
+        # v0.2.0: 验证文件名
+        if not re.match(r'^[a-zA-Z0-9_.-]+\.mp4$', safe_fname, re.IGNORECASE):
+            continue
         fpath = os.path.join(output_dir_abs, safe_fname)
+        # v0.2.0: 路径遍历检查
+        if not os.path.abspath(fpath).startswith(os.path.abspath(output_dir_abs)):
+            continue
         if os.path.isfile(fpath) and safe_fname.endswith('.mp4') and os.path.getsize(fpath) > 10240:
             valid_files.append(fpath)
 
@@ -1051,8 +1197,9 @@ def merge_segments(upload_id):
         import subprocess
         result = subprocess.run(command, capture_output=True, text=True, timeout=300)
         if result.returncode != 0:
-            logger.error('ffmpeg merge failed: %s', result.stderr)
-            return jsonify({'error': '合并失败: ' + result.stderr[-200:]}), 500
+            logger.error('ffmpeg merge failed for upload_id=%s', upload_id)
+            # v0.2.0: 不暴露ffmpeg错误细节
+            return jsonify({'error': '视频合并失败，请稍后重试或减少片段数量'}), 500
 
         total_duration = 0
         for fp in valid_files:
@@ -1079,8 +1226,9 @@ def merge_segments(upload_id):
     except subprocess.TimeoutExpired:
         return jsonify({'error': '合并超时，请减少片段数量重试'}), 504
     except Exception as e:
-        logger.exception('merge failed: %s', e)
-        return jsonify({'error': f'合并失败: {str(e)}'}), 500
+        logger.exception('merge failed for upload_id=%s: %s', upload_id, type(e).__name__)
+        # v0.2.0: 不暴露内部错误信息
+        return jsonify({'error': '视频合并失败，请稍后重试'}), 500
 
 
 @app.route('/api/comments', methods=['GET'])
@@ -1125,8 +1273,8 @@ def create_comment():
         rating = 0
     if rating > 5:
         rating = 5
-    if len(wechat_name) > 32:
-        return jsonify({'error': '微信名太长啦，最多 32 个字符 🎀'}), 400
+    if len(wechat_name) > MAX_WECHAT_NAME_LENGTH:
+        return jsonify({'error': f'微信名太长啦，最多 {MAX_WECHAT_NAME_LENGTH} 个字符 🎀'}), 400
     if not content:
         return jsonify({'error': '评论内容不能为空哦 ✍️'}), 400
     if len(content) > 500:
@@ -1146,7 +1294,6 @@ def create_comment():
     }), 200
 
 
-# v0.1.0-hotfix: 添加管理员验证接口（用于测试）
 @app.route('/api/admin/verify', methods=['POST'])
 def admin_verify():
     wechat_name = _require_wechat_name()
@@ -1156,6 +1303,26 @@ def admin_verify():
     return jsonify({
         'is_admin': is_admin,
         'wechat_name': wechat_name,
+    })
+
+
+# v0.2.0: Token 续期接口（可选，用于延长token有效期）
+@app.route('/api/task/<upload_id>/refresh-token', methods=['POST'])
+@_require_task_access
+def refresh_task_token(upload_id):
+    """刷新任务token，使旧token失效"""
+    # 清理旧token
+    tokens_to_remove = [t for t, info in _TASK_TOKENS.items() if info.get('upload_id') == upload_id]
+    for t in tokens_to_remove:
+        _TASK_TOKENS.pop(t, None)
+    # 生成新token
+    new_token = _generate_task_token(upload_id)
+    share_url = f'/?task_token={new_token}&upload_id={upload_id}'
+    return jsonify({
+        'upload_id': upload_id,
+        'task_token': new_token,
+        'share_url': share_url,
+        'token_expiry_days': TOKEN_EXPIRY_DAYS,
     })
 
 
