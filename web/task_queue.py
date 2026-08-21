@@ -123,18 +123,19 @@ class TaskQueue:
     def submit(self, upload_id: str, input_path: str, output_dir_abs: str,
                min_duration: Optional[float] = None,
                wechat_name: str = None, user_name: str = None, task_name: str = None):
+        # v0.2.0 Security+: 修复竞态条件 - 整个submit操作在锁内完成
         with self._lock:
             if upload_id in self._futures:
                 future = self._futures[upload_id]
                 if not future.done():
                     logger.warning('Task %s already running', upload_id)
                     return False
-        update_task_started(upload_id, task_name=task_name, user_name=user_name)
-        future = self.executor.submit(
-            self._run_task, upload_id, input_path, output_dir_abs,
-            min_duration, wechat_name, user_name, task_name
-        )
-        with self._lock:
+            # 在锁内更新状态并提交任务，防止并发重复提交
+            update_task_started(upload_id, task_name=task_name, user_name=user_name)
+            future = self.executor.submit(
+                self._run_task, upload_id, input_path, output_dir_abs,
+                min_duration, wechat_name, user_name, task_name
+            )
             self._futures[upload_id] = future
 
         def _cleanup(fut):
