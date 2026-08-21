@@ -1,6 +1,21 @@
+# =============================================================================
+# wuxianjinbu-vision Nginx 配置模板 v0.2.0
+# 使用方法：
+#   1. 复制此文件为 /etc/nginx/sites-available/badminton
+#   2. 替换 {{DOMAIN_OR_IP}} 为你的域名或IP
+#   3. 如果使用HTTPS，配置SSL证书路径并取消注释HTTPS相关配置
+#   4. ln -s /etc/nginx/sites-available/badminton /etc/nginx/sites-enabled/
+#   5. nginx -t && systemctl reload nginx
+# =============================================================================
+
+# -------------------- HTTP 配置（必选） --------------------
 server {
     listen 80;
+    listen [::]:80;
     server_name {{DOMAIN_OR_IP}};
+
+    # v0.2.0 Security+: 如果已配置HTTPS，取消下面两行强制跳转HTTPS
+    # return 301 https://$host$request_uri;
 
     # 客户端上传视频大小限制（与 Flask 一致）
     client_max_body_size 600M;
@@ -15,6 +30,13 @@ server {
     gzip on;
     gzip_types text/plain text/css application/json application/javascript application/xml image/svg+xml;
     gzip_min_length 1024;
+
+    # v0.2.0 Security+: 安全响应头
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-Frame-Options "DENY" always;
+    add_header X-XSS-Protection "1; mode=block" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
 
     access_log /var/log/nginx/badminton.access.log;
     error_log  /var/log/nginx/badminton.error.log;
@@ -33,5 +55,83 @@ server {
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
         proxy_request_buffering off;
+
+        # SSE 支持
+        proxy_buffering off;
+        proxy_cache_bypass $http_upgrade;
+        proxy_set_header Connection '';
+        chunked_transfer_encoding off;
     }
 }
+
+# -------------------- HTTPS 配置（推荐，生产环境必选） --------------------
+# 使用前请先使用 certbot 获取SSL证书：
+#   sudo apt install certbot python3-certbot-nginx
+#   sudo certbot --nginx -d your-domain.com
+#
+# 或手动配置：
+# server {
+#     listen 443 ssl http2;
+#     listen [::]:443 ssl http2;
+#     server_name {{DOMAIN_OR_IP}};
+#
+#     # SSL 证书配置（使用 Let's Encrypt 或其他CA）
+#     ssl_certificate     /etc/letsencrypt/live/{{DOMAIN_OR_IP}}/fullchain.pem;
+#     ssl_certificate_key /etc/letsencrypt/live/{{DOMAIN_OR_IP}}/privkey.pem;
+#
+#     # v0.2.0 Security+: SSL 安全配置
+#     ssl_protocols TLSv1.2 TLSv1.3;
+#     ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384;
+#     ssl_prefer_server_ciphers off;
+#     ssl_session_cache shared:SSL:10m;
+#     ssl_session_timeout 1d;
+#     ssl_session_tickets off;
+#
+#     # HSTS（强制HTTPS，谨慎启用，启用后需持续支持HTTPS）
+#     add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+#
+#     # 其他安全响应头
+#     add_header X-Content-Type-Options "nosniff" always;
+#     add_header X-Frame-Options "DENY" always;
+#     add_header X-XSS-Protection "1; mode=block" always;
+#     add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+#     add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
+#
+#     # 上传大小和超时
+#     client_max_body_size 600M;
+#     proxy_connect_timeout 60s;
+#     proxy_send_timeout 900s;
+#     proxy_read_timeout 900s;
+#     send_timeout 900s;
+#
+#     # gzip
+#     gzip on;
+#     gzip_types text/plain text/css application/json application/javascript application/xml image/svg+xml;
+#     gzip_min_length 1024;
+#
+#     access_log /var/log/nginx/badminton.access.log;
+#     error_log  /var/log/nginx/badminton.error.log;
+#
+#     location = /health {
+#         proxy_pass http://127.0.0.1:5000;
+#         proxy_set_header Host $host;
+#         proxy_set_header X-Real-IP $remote_addr;
+#         proxy_set_header X-Forwarded-Proto $scheme;
+#     }
+#
+#     location / {
+#         proxy_pass http://127.0.0.1:5000;
+#         proxy_http_version 1.1;
+#         proxy_set_header Host $host;
+#         proxy_set_header X-Real-IP $remote_addr;
+#         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+#         proxy_set_header X-Forwarded-Proto $scheme;
+#         proxy_request_buffering off;
+#
+#         # SSE 支持
+#         proxy_buffering off;
+#         proxy_cache_bypass $http_upgrade;
+#         proxy_set_header Connection '';
+#         chunked_transfer_encoding off;
+#     }
+# }
