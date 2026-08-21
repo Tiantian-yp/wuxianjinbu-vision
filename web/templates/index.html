@@ -649,6 +649,10 @@
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.8; transform: scale(1.05); }
+        }
 
         .stats {
             display: grid;
@@ -1543,10 +1547,23 @@
             <input type="file" id="fileInput" accept="video/*">
             
             <div class="progress-container" id="progressContainer">
+                <!-- v0.3.0: 多阶段进度指示器 -->
+                <div class="progress-stages" id="progressStages" style="display:flex;gap:4px;margin-bottom:10px;flex-wrap:wrap;">
+                    <span class="stage-chip" data-stage="prepare" style="font-size:11px;padding:3px 10px;border-radius:12px;background:#f0f0f0;color:#999;transition:all 0.3s;">🔧 准备</span>
+                    <span class="stage-chip" data-stage="detect" style="font-size:11px;padding:3px 10px;border-radius:12px;background:#f0f0f0;color:#999;transition:all 0.3s;">🎯 分析</span>
+                    <span class="stage-chip" data-stage="cut" style="font-size:11px;padding:3px 10px;border-radius:12px;background:#f0f0f0;color:#999;transition:all 0.3s;">✂️ 切片</span>
+                    <span class="stage-chip" data-stage="thumbnail" style="font-size:11px;padding:3px 10px;border-radius:12px;background:#f0f0f0;color:#999;transition:all 0.3s;">🖼️ 封面</span>
+                    <span class="stage-chip" data-stage="effect" style="font-size:11px;padding:3px 10px;border-radius:12px;background:#f0f0f0;color:#999;transition:all 0.3s;">🎨 后期</span>
+                    <span class="stage-chip" data-stage="merge" style="font-size:11px;padding:3px 10px;border-radius:12px;background:#f0f0f0;color:#999;transition:all 0.3s;">📦 完成</span>
+                </div>
                 <div class="progress-bar">
                     <div class="progress-fill" id="progressFill"></div>
                 </div>
                 <div class="progress-text" id="progressText">上传中...</div>
+                <!-- v0.3.0: 失败时显示重试按钮 -->
+                <div id="retryRow" style="display:none;margin-top:10px;text-align:center;">
+                    <button class="btn btn-secondary btn-small" id="retryBtn" type="button">🔄 重试处理</button>
+                </div>
             </div>
 
             <div class="video-preview" id="videoPreview">
@@ -1576,6 +1593,35 @@
                         💡 经验之谈：5~10 秒以上，大概率是一整段「多拍回合」；填 0 就是保留所有片段，主打一个原汁原味。
                     </div>
                 </div>
+
+                <!-- v0.3.0: 导出选项面板 -->
+                <div class="export-options" style="background:#f8f5ff;border:1px solid #e0d6ff;border-radius:14px;padding:14px;margin-top:10px;">
+                    <div style="font-size:13px;font-weight:600;color:#6366f1;margin-bottom:10px;">🎬 导出选项</div>
+                    <div style="display:flex;flex-wrap:wrap;gap:12px;margin-bottom:10px;">
+                        <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;">
+                            <span style="color:#666;">画质：</span>
+                            <select id="exportQuality" style="border:1px solid #d1d5db;border-radius:8px;padding:4px 8px;font-size:12px;">
+                                <option value="high">高清（推荐）</option>
+                                <option value="original">原画质量</option>
+                                <option value="medium">标清</option>
+                                <option value="small">省流小体积</option>
+                            </select>
+                        </label>
+                        <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;">
+                            <span style="color:#666;">BGM：</span>
+                            <select id="bgmPreset" style="border:1px solid #d1d5db;border-radius:8px;padding:4px 8px;font-size:12px;">
+                                <option value="">无BGM</option>
+                                <option value="energetic">动感节奏</option>
+                                <option value="relaxed">轻松愉快</option>
+                                <option value="epic">燃向史诗</option>
+                            </select>
+                        </label>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:6px;">
+                        <input type="text" id="watermarkInput" placeholder="加水印文字（可选，如：无限进步俱乐部）" maxlength="50"
+                               style="flex:1;border:1px solid #d1d5db;border-radius:8px;padding:6px 10px;font-size:12px;">
+                    </div>
+                </div>
                 
                 <div class="btn-row">
                     <button class="btn btn-primary" id="processBtn">
@@ -1591,6 +1637,15 @@
             <div class="section-title">🏆 名场面合集（今日份收获）</div>
 
             <div class="stats" id="resultStats" style="display: none;"></div>
+
+            <!-- v0.3.0: 时间轴可视化 -->
+            <div id="timelineContainer" style="display:none;background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:12px;margin-bottom:12px;">
+                <div style="font-size:12px;font-weight:600;color:#475569;margin-bottom:8px;">📊 片段时间轴分布（点击定位）</div>
+                <div id="timelineBar" style="position:relative;height:48px;background:linear-gradient(to right,#fef3c7,#fde68a);border-radius:8px;overflow:hidden;cursor:pointer;"></div>
+                <div style="display:flex;justify-content:space-between;font-size:10px;color:#94a3b8;margin-top:4px;">
+                    <span>0:00</span><span id="timelineTotal">0:00</span>
+                </div>
+            </div>
 
             <div class="filter-bar" id="filterBar" style="display: none;">
                 <div class="filter-item">
@@ -1752,7 +1807,7 @@
                 <img class="brand-mark" src="{{ url_for('static', filename='infinite-progress-logo.png') }}" alt="无限进步">
                 <div class="brand-copy">
                     <span class="brand-slogan">主打快乐，顺带进步</span>
-                    <span class="brand-name">出品方：无限进步俱乐部 · v0.2.0-security · 本馆格言：打一球有一球的欢喜</span>
+                    <span class="brand-name">出品方：无限进步俱乐部 · v0.3.0-experience · 本馆格言：打一球有一球的欢喜</span>
                 </div>
             </div>
         </div>
@@ -2743,6 +2798,10 @@
             } catch (e) {}
             closeTaskNameModal();
             const minDur = minDurationInput.value ? parseFloat(minDurationInput.value) : null;
+            // v0.3.0: 获取导出选项
+            const exportQuality = document.getElementById('exportQuality')?.value || 'high';
+            const watermarkText = document.getElementById('watermarkInput')?.value?.trim() || '';
+            const bgmPreset = document.getElementById('bgmPreset')?.value || '';
 
             const estimate = (currentUpload && currentUpload.process_estimate)
                 ? currentUpload.process_estimate
@@ -2769,6 +2828,9 @@
             processSpinner.style.display = 'inline-block';
             progressContainer.style.display = 'block';
             progressFill.style.width = '1%';
+            progressFill.style.background = '';
+            document.getElementById('retryRow').style.display = 'none';
+            resetStageChips();
             progressText.textContent = '🎯 任务已提交，正在排队处理…';
             videoPreview.style.display = 'none';
 
@@ -2789,6 +2851,21 @@
                 const msg = data.progress_message || '处理中…';
                 progressFill.style.width = progress + '%';
                 progressText.textContent = `${msg} (${progress}%)`;
+                // v0.3.0: 更新阶段指示器
+                updateStageChips(msg);
+
+                // v0.3.0: 失败时显示重试按钮
+                if (status === 'failed') {
+                    if (closed) return;
+                    closed = true;
+                    cleanupSSE();
+                    document.getElementById('retryRow').style.display = 'block';
+                    progressFill.style.background = 'linear-gradient(90deg,#ef4444,#f87171)';
+                    processBtn.disabled = false;
+                    processSpinner.style.display = 'none';
+                    showErrorToast((data && data.error) ? '处理失败：' + data.error : '处理失败，请重试');
+                    return;
+                }
 
                 if (status === 'completed') {
                     if (closed) return;
@@ -2859,6 +2936,9 @@
                     task_name: raw,
                     user_name: raw,
                     wechat_name: wechatName,
+                    export_quality: exportQuality,
+                    watermark_text: watermarkText,
+                    bgm_preset: bgmPreset,
                 })
             })
             .then(response => {
@@ -2975,6 +3055,7 @@
                     </div>
                 `;
                 if (typeof window.parseEmojiIfAble === 'function') window.parseEmojiIfAble(outputList);
+                renderTimeline(files);
                 return;
             }
 
@@ -2985,11 +3066,19 @@
                 const uploadId = currentUpload && currentUpload.upload_id;
                 const authUrl = getAuthenticatedUrl(file.url, uploadId);
                 const thumbUrl = file.thumbnail_url ? getAuthenticatedUrl(file.thumbnail_url, uploadId) : '';
+                const startStr = file.start_time != null ? formatDurationSec(file.start_time) : '';
+                const endStr = file.end_time != null ? formatDurationSec(file.end_time) : '';
+                const timeTag = startStr ? `<span class="output-meta-item" style="color:#8b5cf6;font-size:11px;">📍 ${startStr}${endStr ? ' → ' + endStr : ''}</span>` : '';
                 const thumbHtml = thumbUrl
-                    ? `<div class="output-thumb"><img src="${thumbUrl}" alt="封面" loading="lazy"></div>`
-                    : `<div class="output-thumb">🎬</div>`;
+                    ? `<div class="output-thumb" data-video-url="${authUrl}" style="cursor:pointer;position:relative;">
+                        <img src="${thumbUrl}" alt="封面" loading="lazy">
+                        <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.3);opacity:0;transition:opacity 0.2s;" class="thumb-play-overlay">
+                            <div style="width:36px;height:36px;background:rgba(255,255,255,0.9);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;">▶️</div>
+                        </div>
+                       </div>`
+                    : `<div class="output-thumb" data-video-url="${authUrl}" style="cursor:pointer;position:relative;">🎬</div>`;
                 return `
-                    <div class="output-item">
+                    <div class="output-item" draggable="true" data-index="${idx}" data-filename="${file.name}" style="transition:transform 0.2s,box-shadow 0.2s;">
                         <input type="checkbox" class="item-checkbox" data-url="${file.url}" data-name="${file.name}" ${checked}>
                         ${thumbHtml}
                         <div class="output-info">
@@ -2998,6 +3087,7 @@
                                 <span class="output-meta-item duration">
                                     ⏱️ ${file.duration_str || formatDurationSec(file.duration)}
                                 </span>
+                                ${timeTag}
                                 <span class="output-meta-item">
                                     💾 ${formatSize(file.size)}
                                 </span>
@@ -3007,9 +3097,29 @@
                         <a href="${authUrl}" download="${file.name}" class="download-btn" title="单独下载这一段">
                             ⬇️
                         </a>
+                        <div class="drag-handle" style="cursor:grab;color:#ccc;font-size:18px;padding:0 4px;user-select:none;" title="拖拽排序">⋮⋮</div>
                     </div>
                 `;
             }).join('');
+
+            // 点击缩略图播放视频
+            document.querySelectorAll('.output-thumb').forEach(thumb => {
+                thumb.addEventListener('mouseenter', () => {
+                    const overlay = thumb.querySelector('.thumb-play-overlay');
+                    if (overlay) overlay.style.opacity = '1';
+                });
+                thumb.addEventListener('mouseleave', () => {
+                    const overlay = thumb.querySelector('.thumb-play-overlay');
+                    if (overlay) overlay.style.opacity = '0';
+                });
+                thumb.addEventListener('click', () => {
+                    const videoUrl = thumb.getAttribute('data-video-url');
+                    if (videoUrl) openVideoPreview(videoUrl);
+                });
+            });
+
+            // 拖拽排序
+            setupDragAndDrop();
 
             document.querySelectorAll('.item-checkbox').forEach(cb => {
                 cb.addEventListener('change', () => {
@@ -3025,7 +3135,229 @@
 
             if (typeof window.parseEmojiIfAble === 'function') window.parseEmojiIfAble(outputList);
             updateSelectionUI();
+            renderTimeline(files);
         }
+
+        // v0.3.0: 视频预览弹窗
+        let previewModal = null;
+        function openVideoPreview(videoUrl) {
+            if (!previewModal) {
+                previewModal = document.createElement('div');
+                previewModal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:10000;display:flex;align-items:center;justify-content:center;padding:20px;';
+                previewModal.innerHTML = `
+                    <div style="position:relative;max-width:90vw;max-height:90vh;background:#000;border-radius:12px;overflow:hidden;">
+                        <button id="closePreviewBtn" style="position:absolute;top:10px;right:10px;z-index:1;background:rgba(0,0,0,0.6);color:#fff;border:none;border-radius:50%;width:36px;height:36px;font-size:18px;cursor:pointer;">✕</button>
+                        <video id="previewModalVideo" controls style="max-width:90vw;max-height:85vh;display:block;"></video>
+                    </div>
+                `;
+                document.body.appendChild(previewModal);
+                document.getElementById('closePreviewBtn').addEventListener('click', closeVideoPreview);
+                previewModal.addEventListener('click', (e) => {
+                    if (e.target === previewModal) closeVideoPreview();
+                });
+                document.addEventListener('keydown', (e) => {
+                    if (e.key === 'Escape') closeVideoPreview();
+                });
+            }
+            const video = document.getElementById('previewModalVideo');
+            video.src = videoUrl;
+            previewModal.style.display = 'flex';
+            video.play().catch(() => {});
+        }
+        function closeVideoPreview() {
+            if (previewModal) {
+                const video = document.getElementById('previewModalVideo');
+                if (video) { video.pause(); video.src = ''; }
+                previewModal.style.display = 'none';
+            }
+        }
+
+        // v0.3.0: 拖拽排序
+        let dragSrcIndex = null;
+        function setupDragAndDrop() {
+            const items = outputList.querySelectorAll('.output-item');
+            items.forEach(item => {
+                item.addEventListener('dragstart', (e) => {
+                    dragSrcIndex = parseInt(item.getAttribute('data-index'));
+                    item.style.opacity = '0.4';
+                    e.dataTransfer.effectAllowed = 'move';
+                });
+                item.addEventListener('dragend', () => {
+                    item.style.opacity = '1';
+                    items.forEach(i => i.style.borderTop = '');
+                });
+                item.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'move';
+                    item.style.borderTop = '3px solid #6366f1';
+                });
+                item.addEventListener('dragleave', () => {
+                    item.style.borderTop = '';
+                });
+                item.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    item.style.borderTop = '';
+                    const targetIndex = parseInt(item.getAttribute('data-index'));
+                    if (dragSrcIndex === null || dragSrcIndex === targetIndex) return;
+                    // 重新排序filteredOutputFiles
+                    const moved = filteredOutputFiles.splice(dragSrcIndex, 1)[0];
+                    filteredOutputFiles.splice(targetIndex, 0, moved);
+                    // 更新排序模式为自定义
+                    currentSortMode = 'custom';
+                    document.querySelectorAll('.sort-btn').forEach(b => b.classList.remove('active'));
+                    renderOutputs();
+                    showToast('🔀 已调整片段顺序');
+                });
+            });
+        }
+
+        // v0.3.0: 时间轴渲染
+        function renderTimeline(files) {
+            const container = document.getElementById('timelineContainer');
+            const bar = document.getElementById('timelineBar');
+            const totalEl = document.getElementById('timelineTotal');
+            if (!container || !bar) return;
+            if (!files || files.length === 0 || !files[0] || files[0].start_time == null) {
+                container.style.display = 'none';
+                return;
+            }
+            // 计算总时长
+            let maxEnd = 0;
+            files.forEach(f => {
+                if (f.end_time != null) maxEnd = Math.max(maxEnd, f.end_time);
+                else if (f.start_time != null) maxEnd = Math.max(maxEnd, f.start_time + (f.duration || 0));
+            });
+            if (maxEnd <= 0) { container.style.display = 'none'; return; }
+            container.style.display = 'block';
+            totalEl.textContent = formatDurationSec(maxEnd);
+            let html = '';
+            const colors = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#8b5cf6', '#ec4899'];
+            files.forEach((f, i) => {
+                const start = f.start_time || 0;
+                const dur = f.duration || 0;
+                const end = f.end_time || (start + dur);
+                const left = (start / maxEnd) * 100;
+                const width = Math.max(((end - start) / maxEnd) * 100, 0.5);
+                const color = colors[i % colors.length];
+                const exc = f.excitement_stars || 3;
+                const opacity = 0.5 + (exc / 5) * 0.5;
+                html += `<div class="timeline-seg" data-index="${i}" style="position:absolute;top:4px;bottom:4px;left:${left}%;width:${width}%;background:${color};opacity:${opacity};border-radius:3px;cursor:pointer;transition:opacity 0.2s;" title="片段${i+1}: ${formatDurationSec(start)}-${formatDurationSec(end)} (${formatDurationSec(dur)})"></div>`;
+            });
+            bar.innerHTML = html;
+            bar.querySelectorAll('.timeline-seg').forEach(seg => {
+                seg.addEventListener('click', () => {
+                    const idx = parseInt(seg.getAttribute('data-index'));
+                    const item = outputList.querySelectorAll('.output-item')[idx];
+                    if (item) {
+                        item.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        item.style.boxShadow = '0 0 0 3px #6366f1';
+                        setTimeout(() => item.style.boxShadow = '', 1500);
+                    }
+                });
+            });
+        }
+
+        // v0.3.0: 阶段进度指示器
+        const stageOrder = ['prepare', 'detect', 'cut', 'thumbnail', 'effect', 'merge'];
+        function resetStageChips() {
+            document.querySelectorAll('.stage-chip').forEach(chip => {
+                chip.style.background = '#f0f0f0';
+                chip.style.color = '#999';
+                chip.style.fontWeight = '400';
+            });
+        }
+        function updateStageChips(message) {
+            // 根据消息内容判断当前阶段
+            let currentStage = null;
+            if (message.includes('初始化') || message.includes('准备') || message.includes('排队')) currentStage = 'prepare';
+            else if (message.includes('分析') || message.includes('检测') || message.includes('识别') || message.includes('🎯')) currentStage = 'detect';
+            else if (message.includes('切片') || message.includes('切分') || message.includes('✂️') || message.includes('第')) currentStage = 'cut';
+            else if (message.includes('封面') || message.includes('缩略图') || message.includes('🖼️')) currentStage = 'thumbnail';
+            else if (message.includes('后期') || message.includes('水印') || message.includes('🎨')) currentStage = 'effect';
+            else if (message.includes('完成') || message.includes('📦') || message.includes('打包')) currentStage = 'merge';
+
+            if (!currentStage) return;
+            const currentIdx = stageOrder.indexOf(currentStage);
+            document.querySelectorAll('.stage-chip').forEach(chip => {
+                const stage = chip.getAttribute('data-stage');
+                const idx = stageOrder.indexOf(stage);
+                if (idx < currentIdx) {
+                    chip.style.background = '#dcfce7';
+                    chip.style.color = '#166534';
+                    chip.style.fontWeight = '600';
+                } else if (idx === currentIdx) {
+                    chip.style.background = 'linear-gradient(135deg,#6366f1,#8b5cf6)';
+                    chip.style.color = '#fff';
+                    chip.style.fontWeight = '600';
+                    chip.style.animation = 'pulse 1.5s infinite';
+                } else {
+                    chip.style.background = '#f0f0f0';
+                    chip.style.color = '#999';
+                    chip.style.fontWeight = '400';
+                    chip.style.animation = '';
+                }
+            });
+        }
+
+        // v0.3.0: 重试按钮事件
+        document.addEventListener('DOMContentLoaded', () => {
+            const retryBtn = document.getElementById('retryBtn');
+            if (retryBtn) {
+                retryBtn.addEventListener('click', () => {
+                    if (!currentUpload) return;
+                    const wechat = wechatName || (wechatNameInput && wechatNameInput.value.trim()) || '';
+                    if (!wechat) {
+                        showErrorToast('请先填写微信名');
+                        return;
+                    }
+                    retryBtn.disabled = true;
+                    retryBtn.textContent = '重试中…';
+                    progressFill.style.background = '';
+                    document.getElementById('retryRow').style.display = 'none';
+                    resetStageChips();
+                    progressFill.style.width = '1%';
+                    progressText.textContent = '🔄 正在重新提交任务…';
+
+                    const minDur = minDurationInput.value ? parseFloat(minDurationInput.value) : null;
+                    const exportQuality = document.getElementById('exportQuality')?.value || 'high';
+                    const watermarkText = document.getElementById('watermarkInput')?.value?.trim() || '';
+                    const bgmPreset = document.getElementById('bgmPreset')?.value || '';
+
+                    fetch(`/api/task/${currentUpload.upload_id}/retry`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            ...getAuthHeaders(currentUpload.upload_id)
+                        },
+                        body: JSON.stringify({
+                            min_duration: minDur,
+                            export_quality: exportQuality,
+                            watermark_text: watermarkText,
+                            bgm_preset: bgmPreset,
+                        })
+                    })
+                    .then(response => parseJsonOrFriendly(response))
+                    .then(data => {
+                        if (data && data.error) {
+                            showErrorToast('重试失败：' + data.error);
+                            retryBtn.disabled = false;
+                            retryBtn.textContent = '🔄 重试处理';
+                            document.getElementById('retryRow').style.display = 'block';
+                            return;
+                        }
+                        showToast('🔄 任务已重新提交，正在处理…');
+                        // 重新开始轮询
+                        startProcessing(wechat);
+                    })
+                    .catch(err => {
+                        showErrorToast('重试失败：' + (err.message || '网络异常'));
+                        retryBtn.disabled = false;
+                        retryBtn.textContent = '🔄 重试处理';
+                        document.getElementById('retryRow').style.display = 'block';
+                    });
+                });
+            }
+        });
 
         function updateSelectionUI() {
             const count = selectedUrls.size;

@@ -33,34 +33,24 @@ class TaskQueue:
         logger.info('TaskQueue initialized with %d workers', max_workers)
 
     def _make_progress_callback(self, upload_id: str, stage_weights: Dict[str, float]):
-        detect_weight = stage_weights.get('detect', 0.35)
-        cut_weight = stage_weights.get('cut', 0.60)
-        merge_weight = stage_weights.get('merge', 0.05)
-        stage_state = {'detect_done': False, 'cut_done': 0, 'cut_total': 0}
+        stage_order = list(stage_weights.keys())
+        cumulative = 0.0
+        stage_starts = {}
+        for s in stage_order:
+            stage_starts[s] = cumulative
+            cumulative += stage_weights[s]
 
         def callback(stage: str, progress: float, message: str):
-            if stage == 'detect':
-                overall = progress * detect_weight
-                msg = f'🎯 {message}'
-                update_task_progress(upload_id, overall, msg, status='processing')
-            elif stage == 'cut':
-                done = stage_state['cut_done']
-                total = stage_state['cut_total']
-                if total > 0:
-                    cut_progress = (done + progress) / total
-                    overall = detect_weight + cut_progress * cut_weight
-                else:
-                    overall = detect_weight + progress * cut_weight
-                msg = f'✂️ {message}'
-                update_task_progress(upload_id, overall, msg, status='processing')
-            elif stage == 'cut_done_one':
-                stage_state['cut_done'] = stage_state.get('cut_done', 0) + 1
-            elif stage == 'cut_total':
-                stage_state['cut_total'] = int(progress)
-            elif stage == 'merge':
-                overall = detect_weight + cut_weight + progress * merge_weight
-                msg = f'📦 {message}'
-                update_task_progress(upload_id, overall, msg, status='processing')
+            stage_start = stage_starts.get(stage, 0.0)
+            stage_weight = stage_weights.get(stage, 0.0)
+            overall = stage_start + progress * stage_weight
+            emoji_map = {
+                'prepare': '🔧', 'detect': '🎯', 'cut': '✂️',
+                'thumbnail': '🖼️', 'effect': '🎨', 'merge': '📦'
+            }
+            emoji = emoji_map.get(stage, '⏳')
+            msg = f'{emoji} {message}'
+            update_task_progress(upload_id, min(0.99, overall), msg, status='processing')
             self._notify_subscribers(upload_id)
         return callback
 
@@ -122,7 +112,9 @@ class TaskQueue:
 
     def submit(self, upload_id: str, input_path: str, output_dir_abs: str,
                min_duration: Optional[float] = None,
-               wechat_name: str = None, user_name: str = None, task_name: str = None):
+               wechat_name: str = None, user_name: str = None, task_name: str = None,
+               export_quality: str = 'high', watermark_text: str = None,
+               bgm_preset: str = None):
         # v0.2.0 Security+: 修复竞态条件 - 整个submit操作在锁内完成
         with self._lock:
             if upload_id in self._futures:
@@ -134,7 +126,8 @@ class TaskQueue:
             update_task_started(upload_id, task_name=task_name, user_name=user_name)
             future = self.executor.submit(
                 self._run_task, upload_id, input_path, output_dir_abs,
-                min_duration, wechat_name, user_name, task_name
+                min_duration, wechat_name, user_name, task_name,
+                export_quality, watermark_text, bgm_preset
             )
             self._futures[upload_id] = future
 
@@ -147,22 +140,34 @@ class TaskQueue:
         return True
 
     def _run_task(self, upload_id, input_path, output_dir_abs,
-                  min_duration, wechat_name, user_name, task_name):
-        logger.info('[Task %s] started processing', upload_id)
+                  min_duration, wechat_name, user_name, task_name,
+                  export_quality='high', watermark_text=None, bgm_preset=None):
+        logger.info('[Task %s] started processing (quality=%s, watermark=%s, bgm=%s)',
+                     upload_id, export_quality, bool(watermark_text), bgm_preset)
         output_files = []
         total_segments = 0
+        segment_timeline = []  # v0.3.0: 记录片段起止时间用于时间轴
         try:
             from src.segmenter import VideoSegmenter
             from src.video_cutter import VideoCutter
 
+            # v0.3.0: 更细粒度的进度阶段
             progress_cb = self._make_progress_callback(upload_id, {
-                'detect': 0.35,
-                'cut': 0.60,
+                'prepare': 0.05,
+                'detect': 0.30,
+                'cut': 0.40,
+                'thumbnail': 0.10,
+                'effect': 0.10,
                 'merge': 0.05,
             })
 
+            progress_cb('prepare', 0.5, '正在初始化视频处理器…')
+
             def segment_progress(p, msg):
                 progress_cb('detect', p, msg)
+
+            # v0.3.0: 根据质量选择CRF值
+            quality_crf = {'original': 18, 'high': 23, 'medium': 28, 'small': 33}.get(export_quality, 23)
 
             segmenter = VideoSegmenter(
                 min_segment_duration=3.0,
@@ -171,6 +176,7 @@ class TaskQueue:
                 padding_after=0.5
             )
 
+            progress_cb('prepare', 1.0, '视频处理器就绪，开始分析画面…')
             progress_cb('detect', 0.02, '视频打开中…')
             segments = segmenter.process_video(
                 input_path,
@@ -179,6 +185,9 @@ class TaskQueue:
             )
             stats = segmenter.get_segment_stats()
             total_segments = stats['total_segments']
+            video_duration = getattr(segmenter, 'video_duration', 0) or 0
+            video_width = getattr(segmenter, 'video_width', None)
+            video_height = getattr(segmenter, 'video_height', None)
             logger.info('[Task %s] segmented: %s', upload_id, stats)
 
             filtered_segments = segments
@@ -193,20 +202,15 @@ class TaskQueue:
             video_cutter = VideoCutter(
                 output_format='mp4',
                 codec=None,
-                quality=23
+                quality=quality_crf
             )
 
             valid_segments = [s for s in filtered_segments if s.valid and s.end_time > s.start_time]
             merged = video_cutter._merge_adjacent_segments(valid_segments, max_gap=0.3)
-            progress_cb('cut_total', float(len(merged)), f'共检测到 {len(merged)} 个精彩片段，开始切片…')
+            progress_cb('cut', 0.0, f'共检测到 {len(merged)} 个精彩片段，开始切片…')
 
             cut_success_count = 0
             lock = threading.Lock()
-
-            def cut_progress(done, total, seg):
-                nonlocal cut_success_count
-                with lock:
-                    progress_cb('cut_done_one', 0, f'正在导出片段 {done}/{total}')
 
             os.makedirs(output_dir_abs, exist_ok=True)
             input_filename = os.path.splitext(os.path.basename(input_path))[0]
@@ -215,11 +219,17 @@ class TaskQueue:
                 output_filename = f"segment_{input_filename}_{i:04d}.mp4"
                 output_path = os.path.join(output_dir_abs, output_filename)
                 cut_tasks.append((i, seg, output_path))
+                # v0.3.0: 记录时间轴
+                segment_timeline.append({
+                    'index': i,
+                    'start_time': float(seg.start_time),
+                    'end_time': float(seg.end_time),
+                    'output_filename': output_filename,
+                })
 
             def do_cut(index, seg, out_path):
                 ok = video_cutter.cut_segment(input_path, seg, out_path)
-                with lock:
-                    return index, ok, seg, out_path
+                return index, ok, seg, out_path
 
             from concurrent.futures import ThreadPoolExecutor as CutPool
             workers = video_cutter._default_workers(len(cut_tasks))
@@ -234,32 +244,61 @@ class TaskQueue:
                         cut_success_count += 1
                     progress_cb('cut', done_count / len(cut_tasks), f'已导出 {done_count}/{len(cut_tasks)} 个片段')
 
-            progress_cb('merge', 0.0, '正在整理输出文件、生成封面…')
+            # v0.3.0: 缩略图生成阶段（独立进度）
+            progress_cb('thumbnail', 0.0, '正在为每个片段生成封面缩略图…')
+            mp4_files = []
             if os.path.exists(output_dir_abs):
                 mp4_files = sorted([f for f in os.listdir(output_dir_abs) if f.endswith('.mp4')])
-                total_outputs = len(mp4_files)
-                for idx, f in enumerate(mp4_files):
-                    file_path = os.path.join(output_dir_abs, f)
-                    duration = self._get_video_duration(file_path)
-                    thumb_name = os.path.splitext(f)[0] + '.jpg'
-                    thumb_path = os.path.join(output_dir_abs, thumb_name)
-                    self._generate_thumbnail(file_path, thumb_path, duration)
-                    excitement_score = self._calculate_excitement_score(duration, idx, total_outputs)
-                    output_files.append({
-                        'name': f,
-                        'url': f'/outputs/{upload_id}/{f}',
-                        'thumbnail_url': f'/outputs/{upload_id}/{thumb_name}' if os.path.exists(thumb_path) else None,
-                        'size': os.path.getsize(file_path),
-                        'duration': duration,
-                        'duration_str': self._format_duration(duration),
-                        'excitement_score': excitement_score,
-                        'excitement_stars': min(5, max(1, round(excitement_score * 5))),
-                    })
-                    if idx % 3 == 0:
-                        progress_cb('merge', min(0.9, (idx + 1) / total_outputs * 0.8), f'正在生成封面 {idx+1}/{total_outputs}…')
+            total_outputs = len(mp4_files)
 
-                output_files.sort(key=lambda x: x.get('excitement_score', 0), reverse=True)
+            for idx, f in enumerate(mp4_files):
+                file_path = os.path.join(output_dir_abs, f)
+                duration = self._get_video_duration(file_path)
+                thumb_name = os.path.splitext(f)[0] + '.jpg'
+                thumb_path = os.path.join(output_dir_abs, thumb_name)
+                self._generate_thumbnail(file_path, thumb_path, duration)
+                if idx % 2 == 0:
+                    progress_cb('thumbnail', min(1.0, (idx + 1) / max(1, total_outputs)),
+                                f'封面生成中 {idx+1}/{total_outputs}…')
 
+            # v0.3.0: 后期效果阶段（水印/BGM处理）
+            progress_cb('effect', 0.0, '正在应用后期效果…')
+            has_effects = bool(watermark_text) or bool(bgm_preset)
+            if has_effects:
+                self._apply_effects(output_dir_abs, mp4_files, watermark_text, bgm_preset,
+                                    video_width, video_height, progress_cb)
+            progress_cb('effect', 1.0, '后期效果应用完成')
+
+            # v0.3.0: 整理输出文件
+            progress_cb('merge', 0.2, '正在整理输出文件信息…')
+            total_outputs = len(mp4_files)
+            for idx, f in enumerate(mp4_files):
+                file_path = os.path.join(output_dir_abs, f)
+                duration = self._get_video_duration(file_path)
+                thumb_name = os.path.splitext(f)[0] + '.jpg'
+                thumb_path = os.path.join(output_dir_abs, thumb_name)
+                excitement_score = self._calculate_excitement_score(duration, idx, total_outputs)
+                # v0.3.0: 查找对应的时间轴信息
+                tl_entry = next((t for t in segment_timeline if t['output_filename'] == f), None)
+                output_files.append({
+                    'name': f,
+                    'url': f'/outputs/{upload_id}/{f}',
+                    'thumbnail_url': f'/outputs/{upload_id}/{thumb_name}' if os.path.exists(thumb_path) else None,
+                    'size': os.path.getsize(file_path),
+                    'duration': duration,
+                    'duration_str': self._format_duration(duration),
+                    'excitement_score': excitement_score,
+                    'excitement_stars': min(5, max(1, round(excitement_score * 5))),
+                    'start_time': tl_entry['start_time'] if tl_entry else None,
+                    'end_time': tl_entry['end_time'] if tl_entry else None,
+                })
+                if idx % 3 == 0:
+                    progress_cb('merge', 0.2 + min(0.7, (idx + 1) / total_outputs * 0.7),
+                                f'整理文件信息 {idx+1}/{total_outputs}…')
+
+            output_files.sort(key=lambda x: x.get('excitement_score', 0), reverse=True)
+
+            progress_cb('merge', 0.95, '正在生成处理报告…')
             import sys as _sys
             if PROJECT_ROOT not in _sys.path:
                 _sys.path.insert(0, PROJECT_ROOT)
@@ -267,9 +306,9 @@ class TaskQueue:
             encoder_label = getattr(video_cutter, 'encoder_name_label', None) or 'libx264 (CPU)'
 
             estimate_payload = self._estimate_plan(
-                segmenter.video_duration,
-                width=getattr(segmenter, 'video_width', None),
-                height=getattr(segmenter, 'video_height', None),
+                video_duration,
+                width=video_width,
+                height=video_height,
                 encoder_speed_ratio=encoder_speed_ratio,
                 min_duration_filter=cut_min_duration,
             )
@@ -277,7 +316,7 @@ class TaskQueue:
                 'best_effort_human': self._format_minutes_str(estimate_payload['best_effort_seconds']),
                 'low_human': self._format_minutes_str(estimate_payload['low_seconds']),
                 'high_human': self._format_minutes_str(estimate_payload['high_seconds']),
-                'source_duration_human': self._format_minutes_str(segmenter.video_duration),
+                'source_duration_human': self._format_minutes_str(video_duration),
                 'budget_human': self._format_minutes_str(180),
                 'encoder_label': encoder_label,
             })
@@ -293,6 +332,13 @@ class TaskQueue:
                 'user_name': user_name,
                 'task_name': task_name,
                 'processing_estimate': estimate_payload,
+                'video_duration': video_duration,
+                'video_width': video_width,
+                'video_height': video_height,
+                'segment_timeline': segment_timeline,
+                'export_quality': export_quality,
+                'has_watermark': bool(watermark_text),
+                'has_bgm': bool(bgm_preset),
             }
 
             progress_cb('merge', 1.0, f'🎉 处理完成！共导出 {len(output_files)} 个精彩片段')
@@ -346,6 +392,7 @@ class TaskQueue:
 
     def _generate_thumbnail(self, video_path: str, thumb_path: str, duration: float = None):
         try:
+            import subprocess
             if duration and duration > 0:
                 seek_time = duration / 2.0
             else:
@@ -364,6 +411,76 @@ class TaskQueue:
         except Exception as e:
             logger.warning('Failed to generate thumbnail for %s: %s', os.path.basename(video_path), e)
             return False
+
+    def _apply_effects(self, output_dir_abs, mp4_files, watermark_text, bgm_preset,
+                       video_width, video_height, progress_cb):
+        """v0.3.0: 应用水印和BGM后期效果"""
+        import subprocess
+        total = len(mp4_files)
+        if total == 0:
+            return
+
+        # BGM预设配置（使用ffmpeg生成简单的合成音调作为占位，实际部署时替换为真实音频文件）
+        bgm_config = {
+            'energetic': {'freq': 120, 'volume': 0.15},
+            'relaxed': {'freq': 80, 'volume': 0.10},
+            'epic': {'freq': 100, 'volume': 0.12},
+        }
+
+        for idx, f in enumerate(mp4_files):
+            file_path = os.path.join(output_dir_abs, f)
+            temp_path = file_path + '.tmp.mp4'
+            try:
+                vf_parts = []
+                af_parts = []
+
+                # 水印
+                if watermark_text:
+                    fontsize = 24
+                    if video_height and video_height >= 1080:
+                        fontsize = 36
+                    # 转义特殊字符
+                    safe_text = watermark_text.replace("'", "'\\''").replace(":", "\\:")
+                    vf_parts.append(
+                        f"drawtext=text='{safe_text}':fontcolor=white@0.7:fontsize={fontsize}:"
+                        f"x=w-tw-20:y=h-th-20:shadowcolor=black@0.5:shadowx=2:shadowy=2"
+                    )
+
+                # BGM（生成合成背景音）
+                if bgm_preset and bgm_preset in bgm_config:
+                    cfg = bgm_config[bgm_preset]
+                    af_parts.append(
+                        f"[0:a]volume=1.0[orig];"
+                        f"sine=frequency={cfg['freq']}:duration={{dur}}[bgm];"
+                        f"[bgm]volume={cfg['volume']}[bgmv];"
+                        f"[orig][bgmv]amix=inputs=2:duration=first[aout]"
+                    )
+
+                if vf_parts or af_parts:
+                    cmd = ['ffmpeg', '-y', '-hide_banner', '-loglevel', 'error', '-i', file_path]
+                    if vf_parts:
+                        cmd.extend(['-vf', ','.join(vf_parts)])
+                    cmd.extend(['-c:v', 'libx264', '-preset', 'fast', '-crf', '23'])
+                    if af_parts and bgm_preset:
+                        # BGM需要先获取时长
+                        dur = self._get_video_duration(file_path) or 10
+                        af_str = af_parts[0].replace('{dur}', str(dur))
+                        cmd.extend(['-filter_complex', af_str, '-map', '0:v', '-map', '[aout]',
+                                    '-c:a', 'aac', '-b:a', '128k'])
+                    else:
+                        cmd.extend(['-c:a', 'copy'])
+                    cmd.append(temp_path)
+                    subprocess.run(cmd, capture_output=True, check=True, timeout=60)
+                    if os.path.exists(temp_path) and os.path.getsize(temp_path) > 0:
+                        os.replace(temp_path, file_path)
+            except Exception as e:
+                logger.warning('Failed to apply effects to %s: %s', f, e)
+                if os.path.exists(temp_path):
+                    try:
+                        os.remove(temp_path)
+                    except Exception:
+                        pass
+            progress_cb('effect', (idx + 1) / total, f'后期处理 {idx+1}/{total}…')
 
     def _calculate_excitement_score(self, duration: float, segment_index: int, total_segments: int) -> float:
         score = 0.5

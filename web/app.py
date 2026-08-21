@@ -234,7 +234,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger('badminton-web')
 
-logger.info(f"v0.2.0-security starting - admin_wechat_prefix={ADMIN_WECHAT_NAME}, admin_password_set={bool(ADMIN_PASSWORD)}, cors_origins={CORS_ORIGINS_STR}")
+logger.info(f"v0.3.0-experience starting - admin_wechat_prefix={ADMIN_WECHAT_NAME}, admin_password_set={bool(ADMIN_PASSWORD)}, cors_origins={CORS_ORIGINS_STR}")
 
 
 def _require_wechat_name():
@@ -531,7 +531,7 @@ def app_config():
     except Exception:
         pass
     return jsonify({
-        'version': 'v0.2.0-security',
+        'version': 'v0.3.0-experience',
         'recommended_max_duration_minutes': RECOMMENDED_MAX_DURATION_MINUTES,
         'hard_max_duration_seconds': HARD_MAX_DURATION_SECONDS,
         'budget_processing_seconds': BUDGET_SECONDS_FOR_PROCESS,
@@ -540,6 +540,18 @@ def app_config():
         'encoder_label': encoder_label,
         'auth_required': True,
         'token_expiry_days': TOKEN_EXPIRY_DAYS,
+        'export_qualities': [
+            {'value': 'original', 'label': '原画质量', 'desc': '最高画质，文件最大'},
+            {'value': 'high', 'label': '高清（推荐）', 'desc': '平衡画质与体积'},
+            {'value': 'medium', 'label': '标清', 'desc': '文件较小，适合分享'},
+            {'value': 'small', 'label': '省流小体积', 'desc': '最小体积，适合微信传输'},
+        ],
+        'bgm_presets': [
+            {'value': '', 'label': '无BGM'},
+            {'value': 'energetic', 'label': '动感节奏', 'desc': '适合激烈对抗'},
+            {'value': 'relaxed', 'label': '轻松愉快', 'desc': '适合休闲对打'},
+            {'value': 'epic', 'label': '燃向史诗', 'desc': '适合精彩集锦'},
+        ],
     })
 
 
@@ -794,6 +806,16 @@ def process_video():
     user_name = (data.get('user_name') or data.get('task_name') or '').strip() or None
     task_name = (data.get('task_name') or data.get('user_name') or '').strip() or None
     wechat_name = _require_wechat_name()
+    # v0.3.0: 新增导出参数
+    export_quality = (data.get('export_quality') or 'high').strip()
+    if export_quality not in ('original', 'high', 'medium', 'small'):
+        export_quality = 'high'
+    watermark_text = (data.get('watermark_text') or '').strip() or None
+    if watermark_text and len(watermark_text) > 50:
+        watermark_text = watermark_text[:50]
+    bgm_preset = (data.get('bgm_preset') or '').strip() or None
+    if bgm_preset not in ('energetic', 'relaxed', 'epic', None):
+        bgm_preset = None
 
     if not wechat_name:
         return jsonify({'error': '请先填写可爱的微信名再来处理视频哦 🏸'}), 400
@@ -860,6 +882,9 @@ def process_video():
         wechat_name=wechat_name,
         user_name=user_name,
         task_name=task_name,
+        export_quality=export_quality,
+        watermark_text=watermark_text,
+        bgm_preset=bgm_preset,
     )
 
     resp = {
@@ -1324,6 +1349,83 @@ def refresh_task_token(upload_id):
         'share_url': share_url,
         'token_expiry_days': TOKEN_EXPIRY_DAYS,
     })
+
+
+# v0.3.0: 任务重试接口
+@app.route('/api/task/<upload_id>/retry', methods=['POST'])
+def retry_task(upload_id):
+    """重试失败的任务"""
+    wechat_name = _require_wechat_name()
+    if not wechat_name:
+        return jsonify({'error': '请先填写微信名'}), 401
+    if not re.match(r'^[a-f0-9-]{36}$', upload_id):
+        return jsonify({'error': '无效的任务ID'}), 400
+
+    task = get_task(upload_id)
+    if not task:
+        return jsonify({'error': '任务不存在'}), 404
+
+    # 权限检查
+    admin_password = _get_admin_password()
+    task_token = request.headers.get('X-Task-Token') or (request.get_json(silent=True) or {}).get('task_token')
+    is_owner = task.get('wechat_name') == wechat_name
+    is_admin = _is_admin(wechat_name, admin_password)
+    has_valid_token = _verify_task_token(task_token, upload_id)
+    if not (is_owner or is_admin or has_valid_token):
+        return jsonify({'error': '权限不足，无法重试此任务'}), 403
+
+    # 只能重试失败或已完成的任务
+    current_status = task.get('status')
+    if current_status == 'processing':
+        return jsonify({'error': '任务正在处理中，无法重试'}), 400
+
+    # 查找原始上传文件
+    safe_filename = task.get('safe_filename')
+    if not safe_filename:
+        return jsonify({'error': '找不到原始文件信息'}), 400
+    input_path = os.path.join(app.config['UPLOAD_FOLDER'], safe_filename)
+    if not os.path.exists(input_path):
+        return jsonify({'error': '原始视频文件已过期或不存在，请重新上传'}), 404
+
+    output_dir_abs = os.path.join(app.config['OUTPUT_FOLDER'], upload_id)
+    os.makedirs(output_dir_abs, exist_ok=True)
+
+    # 获取重试参数
+    data = request.get_json(silent=True) or {}
+    min_duration = data.get('min_duration') or task.get('min_duration')
+    export_quality = (data.get('export_quality') or 'high').strip()
+    if export_quality not in ('original', 'high', 'medium', 'small'):
+        export_quality = 'high'
+    watermark_text = (data.get('watermark_text') or '').strip() or None
+    if watermark_text and len(watermark_text) > 50:
+        watermark_text = watermark_text[:50]
+    bgm_preset = (data.get('bgm_preset') or '').strip() or None
+    if bgm_preset not in ('energetic', 'relaxed', 'epic', None):
+        bgm_preset = None
+
+    submitted = task_queue.submit(
+        upload_id=upload_id,
+        input_path=input_path,
+        output_dir_abs=output_dir_abs,
+        min_duration=min_duration,
+        wechat_name=wechat_name,
+        user_name=task.get('user_name'),
+        task_name=task.get('task_name'),
+        export_quality=export_quality,
+        watermark_text=watermark_text,
+        bgm_preset=bgm_preset,
+    )
+
+    if not submitted:
+        return jsonify({'error': '任务提交失败，请稍后重试'}), 500
+
+    return jsonify({
+        'upload_id': upload_id,
+        'status': 'processing',
+        'message': '任务已重新加入处理队列',
+        'progress': 0.01,
+        'progress_message': '🔧 正在准备重新处理视频…',
+    }), 202
 
 
 if __name__ == '__main__':
