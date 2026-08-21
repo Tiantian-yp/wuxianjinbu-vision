@@ -1624,6 +1624,9 @@
                     <button class="btn btn-secondary btn-small" id="downloadSelectedBtn" disabled style="margin-left:8px;">
                         📥 逐个下载
                     </button>
+                    <button class="btn btn-small" id="shareTaskBtn" style="margin-left:8px;background:#6366f1;color:#fff;">
+                        🔗 复制分享链接
+                    </button>
                 </div>
             </div>
 
@@ -1749,7 +1752,7 @@
                 <img class="brand-mark" src="{{ url_for('static', filename='infinite-progress-logo.png') }}" alt="无限进步">
                 <div class="brand-copy">
                     <span class="brand-slogan">主打快乐，顺带进步</span>
-                    <span class="brand-name">出品方：无限进步俱乐部 · v0.1.0-hotfix · 本馆格言：打一球有一球的欢喜</span>
+                    <span class="brand-name">出品方：无限进步俱乐部 · v0.2.0-security · 本馆格言：打一球有一球的欢喜</span>
                 </div>
             </div>
         </div>
@@ -2064,6 +2067,51 @@
                 headers['X-Task-Token'] = token;
             }
             return headers;
+        }
+
+        // v0.2.0-security: 为输出文件URL添加task_token参数（用于直接访问视频文件）
+        function getAuthenticatedUrl(url, uploadId) {
+            if (!url) return url;
+            const token = getTaskToken(uploadId);
+            if (!token) return url;
+            const sep = url.includes('?') ? '&' : '?';
+            return `${url}${sep}task_token=${encodeURIComponent(token)}`;
+        }
+
+        // v0.2.0-security: 生成分享链接
+        function getShareUrl(uploadId, token) {
+            const baseUrl = window.location.origin + window.location.pathname;
+            const t = token || getTaskToken(uploadId);
+            if (!uploadId || !t) return '';
+            return `${baseUrl}?task_token=${encodeURIComponent(t)}&upload_id=${encodeURIComponent(uploadId)}`;
+        }
+
+        // v0.2.0-security: 复制分享链接
+        async function copyShareLink(uploadId, token) {
+            const shareUrl = getShareUrl(uploadId, token);
+            if (!shareUrl) {
+                showWarnToast('无法生成分享链接');
+                return;
+            }
+            try {
+                await navigator.clipboard.writeText(shareUrl);
+                showToast('🔗 分享链接已复制，有效期30天，发给球友一起看名场面！');
+            } catch (e) {
+                // 降级方案
+                const textarea = document.createElement('textarea');
+                textarea.value = shareUrl;
+                textarea.style.position = 'fixed';
+                textarea.style.opacity = '0';
+                document.body.appendChild(textarea);
+                textarea.select();
+                try {
+                    document.execCommand('copy');
+                    showToast('🔗 分享链接已复制！');
+                } catch (e2) {
+                    showWarnToast('复制失败，请手动复制：' + shareUrl);
+                }
+                document.body.removeChild(textarea);
+            }
         }
 
         function getAdminHeader() {
@@ -2934,8 +2982,11 @@
                 const checked = selectedUrls.has(file.url) ? 'checked' : '';
                 const stars = file.excitement_stars || 3;
                 const starHtml = '⭐'.repeat(stars) + '<span style="color:#ddd;">☆</span>'.repeat(5 - stars);
-                const thumbHtml = file.thumbnail_url
-                    ? `<div class="output-thumb"><img src="${file.thumbnail_url}" alt="封面" loading="lazy"></div>`
+                const uploadId = currentUpload && currentUpload.upload_id;
+                const authUrl = getAuthenticatedUrl(file.url, uploadId);
+                const thumbUrl = file.thumbnail_url ? getAuthenticatedUrl(file.thumbnail_url, uploadId) : '';
+                const thumbHtml = thumbUrl
+                    ? `<div class="output-thumb"><img src="${thumbUrl}" alt="封面" loading="lazy"></div>`
                     : `<div class="output-thumb">🎬</div>`;
                 return `
                     <div class="output-item">
@@ -2953,7 +3004,7 @@
                                 <span class="excitement-stars">${starHtml}</span>
                             </div>
                         </div>
-                        <a href="${file.url}" download="${file.name}" class="download-btn" title="单独下载这一段">
+                        <a href="${authUrl}" download="${file.name}" class="download-btn" title="单独下载这一段">
                             ⬇️
                         </a>
                     </div>
@@ -3116,6 +3167,7 @@
                 container.style.border = '2px solid #a5d6a7';
                 actionBar.parentNode.insertBefore(container, outputList);
             }
+            const mergeUploadId = currentUpload && currentUpload.upload_id;
             container.innerHTML = `
                 <div style="font-weight:700;color:#2e7d32;margin-bottom:8px;display:flex;align-items:center;gap:8px;">
                     <span style="font-size:20px;">🎁</span> 你的专属精彩集锦已生成！
@@ -3124,7 +3176,7 @@
                     <div style="font-size:13px;color:#558b2f;">
                         共 ${merged.segment_count} 段 · 总时长 ${merged.duration_str} · 大小 ${formatSize(merged.size)}
                     </div>
-                    <a href="${merged.url}" download="${merged.merged_file}"
+                    <a href="${getAuthenticatedUrl(merged.url, mergeUploadId)}" download="${merged.merged_file}"
                        style="display:inline-flex;align-items:center;gap:6px;padding:8px 20px;background:linear-gradient(135deg,#11998e,#38ef7d);color:white;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px;"
                        onclick="this.style.transform='scale(0.95)';setTimeout(()=>this.style.transform='',150)">
                         📥 下载完整集锦
@@ -3141,17 +3193,28 @@
                 return;
             }
 
-            showToast(`🚚 正在依次发货 ${toDownload.length} 段～浏览器如果弹出“允许多次下载”，点一下允许哦！`);
+            showToast(`🚚 正在依次发货 ${toDownload.length} 段～浏览器如果弹出"允许多次下载"，点一下允许哦！`);
+            const uploadId = currentUpload && currentUpload.upload_id;
             toDownload.forEach((file, index) => {
                 setTimeout(() => {
                     const a = document.createElement('a');
-                    a.href = file.url;
+                    a.href = getAuthenticatedUrl(file.url, uploadId);
                     a.download = file.name;
                     document.body.appendChild(a);
                     a.click();
                     document.body.removeChild(a);
                 }, index * 650);
             });
+        });
+
+        // v0.2.0-security: 分享按钮事件
+        const shareTaskBtn = document.getElementById('shareTaskBtn');
+        shareTaskBtn && shareTaskBtn.addEventListener('click', () => {
+            if (!currentUpload || !currentUpload.upload_id) {
+                showWarnToast('当前没有可分享的任务');
+                return;
+            }
+            copyShareLink(currentUpload.upload_id, currentUpload.task_token);
         });
 
         function formatDate(isoString) {
@@ -3232,7 +3295,7 @@
                     ? `<a class="link-btn secondary" href="${upload}" target="_blank" rel="noopener">📄 看原录像</a>`
                     : '';
                 const previews = (files.length > 4 ? files.slice(0, 4) : files).map(f => `
-                    <a class="link-btn" href="${escapeHtml(f.url)}" download="${escapeHtml(f.name)}" title="${escapeHtml(f.name)}">🎬 ${escapeHtml(f.duration_str || '')}</a>
+                    <a class="link-btn" href="${escapeHtml(getAuthenticatedUrl(f.url, task.upload_id))}" download="${escapeHtml(f.name)}" title="${escapeHtml(f.name)}">🎬 ${escapeHtml(f.duration_str || '')}</a>
                 `).join('');
                 const expandBtnHtml = files.length > 4 ? `
                     <div class="dy-expand">
@@ -3240,7 +3303,7 @@
                         <div class="dy-expand-content" id="${id}-more">
                             <div style="display:flex;flex-wrap:wrap;gap:6px;">
                                 ${files.slice(4).map(f => `
-                                    <a class="link-btn" href="${escapeHtml(f.url)}" download="${escapeHtml(f.name)}" title="${escapeHtml(f.name)}">🎬 ${escapeHtml(f.duration_str || '')}</a>
+                                    <a class="link-btn" href="${escapeHtml(getAuthenticatedUrl(f.url, task.upload_id))}" download="${escapeHtml(f.name)}" title="${escapeHtml(f.name)}">🎬 ${escapeHtml(f.duration_str || '')}</a>
                                 `).join('')}
                             </div>
                         </div>
@@ -3251,6 +3314,9 @@
                 ` : '';
                 const loadBtnHtml = (!isDel && files.length > 0) ? `
                     <button type="button" class="link-btn secondary" onclick="window.loadHistoryTask('${escapeHtml(task.upload_id)}')">🎯 载入到上方结果区</button>
+                ` : '';
+                const shareBtnHtml = files.length > 0 ? `
+                    <button type="button" class="link-btn" onclick="window.copyShareLink('${escapeHtml(task.upload_id)}', '${escapeHtml(getTaskToken(task.upload_id))}')">🔗 分享</button>
                 ` : '';
                 const deleteBtnHtml = canDelete ? `
                     <button type="button" class="link-btn dy-delete-btn" onclick="window.deleteHistoryTask('${escapeHtml(task.upload_id)}')">🗑️ 删除</button>
@@ -3288,6 +3354,7 @@
                                 ${uploadBtn}
                                 ${quickDownloadHtml}
                                 ${loadBtnHtml}
+                                ${shareBtnHtml}
                                 ${deleteBtnHtml}
                                 ${restoreBtnHtml}
                             </div>
@@ -3308,7 +3375,10 @@
             arr.forEach((f, i) => {
                 setTimeout(() => {
                     const a = document.createElement('a');
-                    a.href = f.url;
+                    // 从URL中提取upload_id用于认证
+                    const match = (f.url || '').match(/\/outputs\/([^/]+)\//);
+                    const uid = match ? match[1] : null;
+                    a.href = getAuthenticatedUrl(f.url, uid);
                     a.download = f.name;
                     document.body.appendChild(a);
                     a.click();
@@ -3316,6 +3386,9 @@
                 }, i * 600);
             });
         };
+
+        // v0.2.0-security: 暴露copyShareLink到全局
+        window.copyShareLink = copyShareLink;
 
         function loadHistory() {
             const url = currentHistoryFilter
@@ -3375,6 +3448,7 @@
                 filename: task.original_filename || task.safe_filename || '',
                 url: task.upload_url || '',
                 wechat_name: task.wechat_name || task.task_name || task.user_name || '',
+                task_token: getTaskToken(task.upload_id),
             };
             // Load token from URL params if present (for shared tasks)
             const urlParams = new URLSearchParams(window.location.search);
